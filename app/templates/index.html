@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ t.new_incident_title }}</h1>
+  <p class="muted">{{ t.new_incident_desc }}</p>
+
+  <div class="demo-bar">
+    <span class="demo-label">{{ t.quick_demos }}</span>
+    <button type="button" class="chip" data-demo-desc="My MacBook is connected to Wi-Fi but has no internet and shows 169.254.42.18" data-demo-os="macos">{{ t.demo_net_mac }}</button>
+    <button type="button" class="chip" data-demo-desc="My desktop PC won't power on and shows no display" data-demo-os="windows">{{ t.demo_hw_win }}</button>
+    <button type="button" class="chip" data-demo-desc="Ubuntu Linux server is extremely slow with high CPU usage" data-demo-os="linux">{{ t.demo_os_linux }}</button>
+  </div>
+
+  <form method="post" action="{{ url_for('main.create_incident') }}" class="stack-form">
+    <div class="form-group">
+      <label for="description">{{ t.label_description }}</label>
+      <textarea id="description" name="description" rows="4" required placeholder="{{ t.placeholder_description }}"></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="target_os">{{ t.label_target_os }}</label>
+        <select id="target_os" name="target_os">
+          <option value="windows">Windows</option>
+          <option value="linux">Linux</option>
+          <option value="macos">macOS</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="workflow_id">{{ t.label_workflow_override }}</label>
+        <select id="workflow_id" name="workflow_id">
+          <option value="">{{ t.option_auto }}</option>
+          {% for wf in workflows %}
+            <option value="{{ wf.workflow_id }}">[{{ wf.workflow_id }}] {{ wf.workflow_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <button type="submit" class="btn btn-primary btn-lg">{{ t.btn_start_diagnosis }} &rarr;</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>{{ t.recent_incidents }}</h2>
+  {% if incidents %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>{{ t.col_id }}</th>
+          <th>{{ t.label_description }}</th>
+          <th>{{ t.col_os }}</th>
+          <th>{{ t.col_workflow }}</th>
+          <th>{{ t.col_status }}</th>
+          <th>{{ t.col_action }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inc in incidents %}
+        <tr>
+          <td><code>{{ inc.incident_id }}</code></td>
+          <td class="desc-cell">{{ inc.description[:90] }}{% if inc.description|length > 90 %}...{% endif %}</td>
+          <td><span class="badge badge-os">{{ inc.target_os }}</span></td>
+          <td><code>{{ inc.workflow_id or 'N/A' }}</code></td>
+          <td><span class="badge badge-status status-{{ inc.status }}">{{ t['status_' + inc.status] if ('status_' + inc.status) in t else inc.status }}</span></td>
+          <td class="actions-cell">
+            {% if inc.status == 'in_progress' and inc.latest_session_id %}
+              <a class="btn btn-sm btn-primary" href="{{ url_for('main.view_session', session_id=inc.latest_session_id) }}">{{ t.btn_continue }}</a>
+            {% endif %}
+            <a class="btn btn-sm btn-outline" href="{{ url_for('main.view_report', incident_id=inc.incident_id) }}">{{ t.btn_view_report }}</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="muted">{{ t.no_incidents }}</p>
+  {% endif %}
+</section>
+{% endblock %}

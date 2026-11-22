@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ t.select_wf_title }}</h1>
+  <p class="muted">{{ t.select_wf_desc }}</p>
+
+  {% if classification.safety_warning %}
+  <div class="alert alert-danger">{{ classification.safety_warning }}</div>
+  {% endif %}
+
+  <div class="info-box">
+    <p><strong>{{ t.col_id }}:</strong> <code>{{ incident.incident_id }}</code></p>
+    <p><strong>{{ t.sec_symptoms }}:</strong> {{ incident.description }}</p>
+    <p><strong>Classifier Note:</strong> {{ classification.explanation }}</p>
+  </div>
+
+  <form method="post" action="{{ url_for('main.start_workflow_for_incident', incident_id=incident.incident_id) }}" class="stack-form">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="target_os">{{ t.label_target_os }}</label>
+        <select id="target_os" name="target_os">
+          <option value="windows" {% if incident.target_os == 'windows' %}selected{% endif %}>Windows</option>
+          <option value="linux" {% if incident.target_os == 'linux' %}selected{% endif %}>Linux</option>
+          <option value="macos" {% if incident.target_os == 'macos' %}selected{% endif %}>macOS</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="workflow_id">{{ t.col_workflow }}</label>
+        <select id="workflow_id" name="workflow_id" required>
+          {% for wf in workflows %}
+            <option value="{{ wf.workflow_id }}">[{{ wf.workflow_id }}] {{ wf.workflow_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">{{ t.btn_start_diagnosis }} &rarr;</button>
+  </form>
+</section>
+{% endblock %}

@@ -27,8 +27,8 @@ Core application development has not yet started.
 | Development Progress Documentation | In Progress |
 | JSON Knowledge Base Implementation | Completed |
 | Diagnostic Engine Implementation | Completed |
-| Automated Testing | In Progress (45 tests passing: KB + Parser + Engine + Classifier + DB + Reports) |
-| Flask Application | Pending |
+| Automated Testing | In Progress (48 tests passing: KB + Parser + Engine + Classifier + DB + Reports + Web) |
+| Flask Application | Completed (Bilingual Traditional Chinese / English) |
 | SQLite Integration | Completed |
 | Incident Management | Completed |
 | Report Generation | Completed |
@@ -245,8 +245,8 @@ Never report planned functionality as implemented functionality.
 | M2 | Knowledge base foundation | Completed |
 | M3 | Diagnostic engine | Completed |
 | M4 | Incident and evidence management | Completed |
-| M5 | Flask application | Pending |
-| M6 | Reports and learning mode | Pending |
+| M5 | Flask application | Completed |
+| M6 | Reports and learning mode | Completed |
 | M7 | QA and deployment | Pending |
 
 ---

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+{% set inc = report.incident %}
+{% set sess = report.session %}
+
+<section class="card">
+  <div class="report-head">
+    <div>
+      <h1>{{ t.report_title }}</h1>
+      <div class="session-meta">
+        <span class="badge badge-id">{{ inc.incident_id }}</span>
+        <span class="badge badge-os">{{ inc.target_os | upper }}</span>
+        <span class="badge badge-status status-{{ inc.status }}">
+          {{ t['status_' + inc.status] if ('status_' + inc.status) in t else inc.status }}
+        </span>
+      </div>
+    </div>
+    <div class="report-actions">
+      <button type="button" class="btn btn-primary copy-btn" data-copy-target="markdown-box" data-copied-label="{{ t.copied }}">📋 {{ t.btn_copy_md }}</button>
+      <a class="btn btn-outline" href="{{ url_for('main.download_markdown_report', incident_id=inc.incident_id) }}">⬇ {{ t.btn_download_md }}</a>
+      <a class="btn btn-outline" target="_blank" href="{{ url_for('main.view_printable_report', incident_id=inc.incident_id) }}">🖨 {{ t.btn_print_html }}</a>
+    </div>
+  </div>
+
+  {% if sess and sess.safety_alert %}
+  <div class="alert alert-danger">
+    <h3>🚨 SAFETY STOP ALERT ({{ sess.safety_alert.flag_id }})</h3>
+    <p><strong>Trigger:</strong> {{ sess.safety_alert.label }}</p>
+    <p><strong>Warning:</strong> {{ sess.safety_alert.warning_message }}</p>
+    <p><strong>Required Action:</strong> {{ sess.safety_alert.escalation_instruction }}</p>
+  </div>
+  {% endif %}
+
+  <div class="report-grid">
+    <div>
+      <h3>{{ t.sec_symptoms }}</h3>
+      <p>{{ inc.description }}</p>
+
+      <h3>{{ t.sec_steps }}</h3>
+      {% if sess and sess.history %}
+      <ol>
+        {% for s in sess.history %}
+        <li>
+          <strong>{{ s.step_id }} — {{ s.step_title }}</strong>
+          [<code>{{ s.result_code }}</code> &rarr; <code>{{ s.action_taken }}</code>]
+          <div class="muted small">{{ s.summary }}{% if s.user_notes %} | Notes: {{ s.user_notes }}{% endif %}</div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+        <p class="muted">-</p>
+      {% endif %}
+
+      <h3>{{ t.sec_evidence }}</h3>
+      {% if sess and sess.evidence %}
+      <ul>
+        {% for ev in sess.evidence %}
+        <li><strong>[{{ ev.step_id }} | {{ ev.evidence_type }} | {{ ev.source }}]</strong> {{ ev.description }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        <p class="muted">-</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <h3>{{ t.sec_ruled_out }}</h3>
+      {% if sess and sess.ruled_out_causes %}
+      <ul>
+        {% for item in sess.ruled_out_causes %}
+          <li>✅ {{ item }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        <p class="muted">{{ t.no_ruled_out }}</p>
+      {% endif %}
+
+      <h3>{{ t.sec_findings }}</h3>
+      <p class="info-box small"><strong>Root Cause Status:</strong> {{ report.root_cause_status }}</p>
+      {% if report.findings %}
+      <ul>
+        {% for f in report.findings %}
+        <li>
+          <span class="badge badge-finding finding-{{ f.status }}">{{ f.status | upper }}</span>
+          ({{ f.step_id }}) {{ f.description }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        <p class="muted">-</p>
+      {% endif %}
+
+      {% if inc.resolution_notes %}
+      <div class="alert alert-success">
+        <strong>Resolution:</strong> {{ inc.resolution_notes }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>{{ t.sec_resolution }}</h2>
+  <form method="post" action="{{ url_for('main.record_resolution', incident_id=inc.incident_id) }}" class="stack-form">
+    {% if report.findings %}
+    <div class="form-group">
+      <label for="confirm_finding_id">{{ t.label_confirm_finding }}</label>
+      <select id="confirm_finding_id" name="confirm_finding_id">
+        <option value="">{{ t.option_none_confirm }}</option>
+        {% for f in report.findings %}
+          <option value="{{ f.id }}">[{{ f.status | upper }}] ({{ f.step_id }}) {{ f.description[:100] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="form-group">
+      <label for="resolution_notes">{{ t.label_resolution_notes }}</label>
+      <textarea id="resolution_notes" name="resolution_notes" rows="3" required>{{ inc.resolution_notes or '' }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">{{ t.btn_save_resolution }}</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>{{ t.sec_md_preview }}</h2>
+  <textarea id="markdown-box" class="markdown-preview" rows="16" readonly>{{ markdown_text }}</textarea>
+</section>
+{% endblock %}
