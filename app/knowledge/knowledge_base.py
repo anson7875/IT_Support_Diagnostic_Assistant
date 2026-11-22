@@ -8,6 +8,7 @@ query helpers for the Diagnostic Engine and presentation layer.
 
 from __future__ import annotations
 
+import copy
 import json
 from collections import deque
 from pathlib import Path
@@ -417,6 +418,7 @@ class KnowledgeBase:
             data_dir = Path(__file__).resolve().parent.parent / "data"
         self.data_dir = Path(data_dir)
         self._workflows: dict[str, dict[str, Any]] = {}
+        self._translations: dict[str, dict[str, Any]] = {}
 
     def load_all(self) -> None:
         """Load and validate all ``*_rules.json`` files from ``self.data_dir``."""
@@ -451,15 +453,57 @@ class KnowledgeBase:
                 loaded[wid] = wf
 
         self._workflows = loaded
+        self._load_translations()
 
-    def get_workflow(self, workflow_id: str) -> dict[str, Any]:
-        """Return a workflow definition by ID, or raise KeyError if missing."""
+    def _load_translations(self) -> None:
+        """Load optional ``translations_<lang>.json`` overlay packs from ``self.data_dir``."""
+        self._translations = {}
+        for path in sorted(self.data_dir.glob("translations_*.json")):
+            lang_code = path.stem.replace("translations_", "", 1).lower()
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and isinstance(data.get("workflows"), dict):
+                    self._translations[lang_code] = data["workflows"]
+            except (OSError, json.JSONDecodeError):
+                continue
+
+    def _localize_workflow_meta(
+        self, wf: dict[str, Any], lang: str
+    ) -> dict[str, Any]:
+        """Return a shallow localized copy of workflow metadata and red flags."""
+        wf_tr = self._translations.get(lang, {}).get(wf["workflow_id"])
+        if not wf_tr:
+            return wf
+        localized = dict(wf)
+        if "workflow_name" in wf_tr:
+            localized["workflow_name"] = wf_tr["workflow_name"]
+        if "description" in wf_tr:
+            localized["description"] = wf_tr["description"]
+        rf_tr = wf_tr.get("safety_red_flags", {})
+        if rf_tr and wf.get("safety_red_flags"):
+            new_flags = []
+            for flag in wf["safety_red_flags"]:
+                tr = rf_tr.get(flag["flag_id"])
+                if tr:
+                    merged = dict(flag)
+                    merged.update(tr)
+                    new_flags.append(merged)
+                else:
+                    new_flags.append(flag)
+            localized["safety_red_flags"] = new_flags
+        return localized
+
+    def get_workflow(self, workflow_id: str, lang: str = "en") -> dict[str, Any]:
+        """Return a workflow definition by ID, optionally localized for ``lang``."""
         if workflow_id not in self._workflows:
             raise KeyError(f"Workflow '{workflow_id}' not found.")
-        return self._workflows[workflow_id]
+        return self._localize_workflow_meta(self._workflows[workflow_id], lang)
 
     def list_workflows(
-        self, category: str | None = None, target_os: str | None = None
+        self,
+        category: str | None = None,
+        target_os: str | None = None,
+        lang: str = "en",
     ) -> list[dict[str, Any]]:
         """Return loaded workflows, optionally filtered by category and target OS."""
         results = list(self._workflows.values())
@@ -472,23 +516,29 @@ class KnowledgeBase:
                 for wf in results
                 if "all" in wf["supported_os"] or os_key in wf["supported_os"]
             ]
-        return results
+        return [self._localize_workflow_meta(wf, lang) for wf in results]
 
     def get_step(self, workflow_id: str, step_id: str) -> dict[str, Any]:
         """Return a raw diagnostic step by workflow ID and step ID."""
-        wf = self.get_workflow(workflow_id)
+        wf = self._workflows.get(workflow_id)
+        if wf is None:
+            raise KeyError(f"Workflow '{workflow_id}' not found.")
         for step in wf["steps"]:
             if step["step_id"] == step_id:
                 return step
         raise KeyError(f"Step '{step_id}' not found in workflow '{workflow_id}'.")
 
     def resolve_step_for_os(
-        self, workflow_id: str, step_id: str, target_os: str = "windows"
+        self,
+        workflow_id: str,
+        step_id: str,
+        target_os: str = "windows",
+        lang: str = "en",
     ) -> dict[str, Any]:
         """Return a step enriched with active instructions/commands for ``target_os``.
 
-        Preserves ``os_variants`` so the UI Learning Drawer can still display
-        side-by-side Windows, Linux, and macOS equivalents.
+        Applies optional ``lang`` translation overlay (e.g., ``zh``) while keeping
+        terminal commands intact and preserving ``os_variants`` for Learning Notes.
         """
         os_key = target_os.lower()
         if os_key not in CONCRETE_OS_VALUES:
@@ -496,25 +546,50 @@ class KnowledgeBase:
                 f"Unsupported target_os '{target_os}'. Expected one of {sorted(CONCRETE_OS_VALUES)}."
             )
 
-        step = self.get_step(workflow_id, step_id)
+        step = copy.deepcopy(self.get_step(workflow_id, step_id))
+        step_tr = (
+            self._translations.get(lang, {})
+            .get(workflow_id, {})
+            .get("steps", {})
+            .get(step_id)
+        )
+        if step_tr:
+            for field in (
+                "title",
+                "objective",
+                "instructions",
+                "expected_results",
+                "safety_requirements",
+            ):
+                if field in step_tr:
+                    step[field] = step_tr[field]
+            if "learning_content" in step_tr:
+                step["learning_content"].update(step_tr["learning_content"])
+            if "os_variants" in step_tr and step.get("os_variants"):
+                for os_name, v_tr in step_tr["os_variants"].items():
+                    if os_name in step["os_variants"]:
+                        step["os_variants"][os_name].update(v_tr)
+            if "outcomes" in step_tr:
+                for outcome in step["outcomes"]:
+                    o_tr = step_tr["outcomes"].get(outcome["outcome_id"])
+                    if o_tr and "label" in o_tr:
+                        outcome["label"] = o_tr["label"]
+
         variants = step.get("os_variants") or {}
         variant = variants.get(os_key)
 
-        resolved = dict(step)
-        resolved["resolved_os"] = os_key
+        step["resolved_os"] = os_key
         if variant:
-            resolved["active_instructions"] = list(variant["instructions"])
-            resolved["active_command"] = variant.get("command")
-            resolved["active_gui_path"] = variant.get("gui_path")
-            resolved["active_expected_output_hint"] = variant.get(
-                "expected_output_hint"
-            )
+            step["active_instructions"] = list(variant["instructions"])
+            step["active_command"] = variant.get("command")
+            step["active_gui_path"] = variant.get("gui_path")
+            step["active_expected_output_hint"] = variant.get("expected_output_hint")
         else:
-            resolved["active_instructions"] = list(step["instructions"])
-            resolved["active_command"] = None
-            resolved["active_gui_path"] = None
-            resolved["active_expected_output_hint"] = None
-        return resolved
+            step["active_instructions"] = list(step["instructions"])
+            step["active_command"] = None
+            step["active_gui_path"] = None
+            step["active_expected_output_hint"] = None
+        return step
 
     def get_references_for_step(
         self, workflow_id: str, step_id: str

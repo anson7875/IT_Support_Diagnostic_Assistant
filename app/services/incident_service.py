@@ -293,10 +293,12 @@ class IncidentService:
             escalation_reason=row["escalation_reason"],
         )
 
-    def get_current_step(self, session_id: str) -> dict[str, Any] | None:
+    def get_current_step(
+        self, session_id: str, lang: str = "en"
+    ) -> dict[str, Any] | None:
         """Return the active OS-resolved step for a persisted session."""
         session = self.load_session(session_id)
-        return self.engine.get_current_step(session)
+        return self.engine.get_current_step(session, lang=lang)
 
     def submit_step(
         self,

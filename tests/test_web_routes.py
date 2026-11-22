@@ -109,3 +109,29 @@ def test_ambiguous_incident_prompts_workflow_selection(tmp_path: Path) -> None:
     assert res.status_code == 200
     assert "NET-001" in res.get_data(as_text=True)
     assert "OS-001" in res.get_data(as_text=True)
+
+
+def test_session_step_content_localized_in_zh_and_en(tmp_path: Path) -> None:
+    client = _make_client(tmp_path)
+    res_create = client.post(
+        "/incidents/create",
+        data={
+            "description": "我的 MacBook 連上 Wi-Fi 但無法上網",
+            "target_os": "macos",
+        },
+        follow_redirects=False,
+    )
+    session_url = res_create.headers["Location"]
+
+    # Default zh: step title, outcomes, and floating buttons are Traditional Chinese
+    html_zh = client.get(session_url).get_data(as_text=True)
+    assert "檢查實體網路線與 Wi-Fi 連線狀態" in html_zh
+    assert "學習筆記" in html_zh
+    assert "診斷進度" in html_zh
+    assert "networksetup -listallhardwareports" in html_zh  # Command stays intact
+
+    # Switch to English: step title and drawer switch to English
+    client.get("/set-lang/en")
+    html_en = client.get(session_url).get_data(as_text=True)
+    assert "Verify Physical Link and Wi-Fi Association" in html_en
+    assert "Learning Notes" in html_en

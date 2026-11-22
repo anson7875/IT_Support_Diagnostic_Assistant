@@ -54,7 +54,7 @@ def set_language(lang_code: str):
 def index():
     service = _service()
     incidents = service.list_incidents(limit=25)
-    workflows = service.kb.list_workflows()
+    workflows = service.kb.list_workflows(lang=_lang())
     return render_template("index.html", incidents=incidents, workflows=workflows)
 
 
@@ -85,7 +85,7 @@ def create_incident():
         "select_workflow.html",
         incident=incident,
         classification=result["classification"],
-        workflows=service.kb.list_workflows(),
+        workflows=service.kb.list_workflows(lang=_lang()),
     )
 
 
@@ -123,8 +123,9 @@ def view_session(session_id: str):
             url_for("main.view_report", incident_id=diag_session.incident_id)
         )
 
-    step = service.get_current_step(session_id)
-    workflow = service.kb.get_workflow(diag_session.workflow_id)
+    lang = _lang()
+    step = service.get_current_step(session_id, lang=lang)
+    workflow = service.kb.get_workflow(diag_session.workflow_id, lang=lang)
     return render_template(
         "session.html",
         incident=incident,

@@ -122,14 +122,16 @@ class DiagnosticEngine:
             status="active",
         )
 
-    def get_current_step(self, session: DiagnosticSession) -> dict[str, Any] | None:
+    def get_current_step(
+        self, session: DiagnosticSession, lang: str = "en"
+    ) -> dict[str, Any] | None:
         """Return the current OS-resolved diagnostic step, or None if session is not active."""
         if session.status != "active" or session.current_step_id is None:
             return None
 
-        workflow = self.kb.get_workflow(session.workflow_id)
+        workflow = self.kb.get_workflow(session.workflow_id, lang=lang)
         step = self.kb.resolve_step_for_os(
-            session.workflow_id, session.current_step_id, session.target_os
+            session.workflow_id, session.current_step_id, session.target_os, lang=lang
         )
         step["references"] = self.kb.get_references_for_step(
             session.workflow_id, session.current_step_id

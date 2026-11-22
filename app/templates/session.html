@@ -1,232 +1,272 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="session-header card">
-  <div class="session-meta">
-    <span class="badge badge-id">{{ incident.incident_id }}</span>
-    <span class="badge badge-os">{{ session.target_os | upper }}</span>
-    <span class="badge badge-risk risk-{{ step.command_risk_level }}">
-      {{ t['risk_' + step.command_risk_level] }}
-    </span>
-    <span class="workflow-crumb">{{ workflow.workflow_id }} — {{ workflow.workflow_name }}</span>
+<div class="workbench-single">
+  <div class="session-header card">
+    <div class="session-meta">
+      <span class="badge badge-id">{{ incident.incident_id }}</span>
+      <span class="badge badge-os">{{ session.target_os | upper }}</span>
+      <span class="badge badge-risk risk-{{ step.command_risk_level }}">
+        {{ t['risk_' + step.command_risk_level] }}
+      </span>
+      <span class="workflow-crumb">{{ workflow.workflow_id }} — {{ workflow.workflow_name }}</span>
+    </div>
+    <a class="btn btn-sm btn-outline" href="{{ url_for('main.view_report', incident_id=incident.incident_id) }}">{{ t.btn_view_report }}</a>
   </div>
-  <a class="btn btn-sm btn-outline" href="{{ url_for('main.view_report', incident_id=incident.incident_id) }}">{{ t.btn_view_report }}</a>
-</div>
 
-<div class="workbench-grid">
-  <!-- LEFT: Active Diagnostic Step -->
-  <div class="workbench-main">
-    <section class="card">
-      <div class="step-kicker">{{ step.step_id }}</div>
-      <h2>{{ step.title }}</h2>
+  <!-- Focused Single-Column Active Diagnostic Step -->
+  <section class="card">
+    <div class="step-kicker">{{ step.step_id }}</div>
+    <h2>{{ step.title }}</h2>
 
-      <div class="block">
-        <h3>{{ t.step_objective }}</h3>
-        <p>{{ step.objective }}</p>
+    <div class="block">
+      <h3>{{ t.step_objective }}</h3>
+      <p>{{ step.objective }}</p>
+    </div>
+
+    <div class="block">
+      <h3>{{ t.step_instructions }} ({{ session.target_os | upper }})</h3>
+      <ol class="instruction-list">
+        {% for line in step.active_instructions %}
+          <li>{{ line }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+
+    {% if step.active_command %}
+    <div class="block">
+      <div class="block-head">
+        <h3>{{ t.step_command }}</h3>
+        <button type="button" class="btn btn-xs btn-outline copy-btn" data-copy-text="{{ step.active_command }}" data-copied-label="{{ t.copied }}">{{ t.btn_copy }}</button>
       </div>
+      <pre class="code-box"><code>{{ step.active_command }}</code></pre>
+    </div>
+    {% endif %}
 
-      <div class="block">
-        <h3>{{ t.step_instructions }} ({{ session.target_os | upper }})</h3>
-        <ol class="instruction-list">
-          {% for line in step.active_instructions %}
-            <li>{{ line }}</li>
-          {% endfor %}
-        </ol>
-      </div>
+    {% if step.active_gui_path %}
+    <div class="block">
+      <h3>{{ t.step_gui_path }}</h3>
+      <p class="gui-path">{{ step.active_gui_path }}</p>
+    </div>
+    {% endif %}
 
-      {% if step.active_command %}
-      <div class="block">
-        <div class="block-head">
-          <h3>{{ t.step_command }}</h3>
-          <button type="button" class="btn btn-xs btn-outline copy-btn" data-copy-text="{{ step.active_command }}" data-copied-label="{{ t.copied }}">{{ t.btn_copy }}</button>
+    <div class="block">
+      <h3>{{ t.step_expected }}</h3>
+      <p>{{ step.expected_results }}</p>
+      {% if step.active_expected_output_hint %}
+        <p class="hint-line">💡 {{ step.active_expected_output_hint }}</p>
+      {% endif %}
+    </div>
+
+    {% if step.safety_requirements %}
+    <div class="alert alert-warning">
+      <strong>⚠ {{ t.step_safety }}:</strong>
+      <ul>
+        {% for req in step.safety_requirements %}
+          <li>{{ req }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('main.submit_step', session_id=session.session_id) }}" id="step-form" class="stack-form">
+      {% if step.parser_key %}
+      <div class="parser-box">
+        <h3>⚡ {{ t.parser_title }}</h3>
+        <p class="muted small">{{ t.parser_desc }}</p>
+        <textarea
+          id="raw_command_output"
+          name="raw_command_output"
+          rows="4"
+          placeholder="{{ t.parser_placeholder }}"
+        ></textarea>
+        <div class="parser-actions">
+          <button
+            type="button"
+            id="btn-parse-output"
+            class="btn btn-sm btn-secondary"
+            data-parser-key="{{ step.parser_key }}"
+            data-target-os="{{ session.target_os }}"
+          >{{ t.btn_analyze_output }}</button>
         </div>
-        <pre class="code-box"><code>{{ step.active_command }}</code></pre>
+        <div id="parser-preview" class="parser-preview hidden"></div>
       </div>
       {% endif %}
 
-      {% if step.active_gui_path %}
       <div class="block">
-        <h3>{{ t.step_gui_path }}</h3>
-        <p class="gui-path">{{ step.active_gui_path }}</p>
-      </div>
-      {% endif %}
-
-      <div class="block">
-        <h3>{{ t.step_expected }}</h3>
-        <p>{{ step.expected_results }}</p>
-        {% if step.active_expected_output_hint %}
-          <p class="hint-line">💡 {{ step.active_expected_output_hint }}</p>
-        {% endif %}
-      </div>
-
-      {% if step.safety_requirements %}
-      <div class="alert alert-warning">
-        <strong>⚠ {{ t.step_safety }}:</strong>
-        <ul>
-          {% for req in step.safety_requirements %}
-            <li>{{ req }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
-
-      <form method="post" action="{{ url_for('main.submit_step', session_id=session.session_id) }}" id="step-form" class="stack-form">
-        {% if step.parser_key %}
-        <div class="parser-box">
-          <h3>⚡ {{ t.parser_title }}</h3>
-          <p class="muted small">{{ t.parser_desc }}</p>
-          <textarea
-            id="raw_command_output"
-            name="raw_command_output"
-            rows="4"
-            placeholder="{{ t.parser_placeholder }}"
-          ></textarea>
-          <div class="parser-actions">
-            <button
-              type="button"
-              id="btn-parse-output"
-              class="btn btn-sm btn-secondary"
-              data-parser-key="{{ step.parser_key }}"
-              data-target-os="{{ session.target_os }}"
-            >{{ t.btn_analyze_output }}</button>
-          </div>
-          <div id="parser-preview" class="parser-preview hidden"></div>
-        </div>
-        {% endif %}
-
-        <div class="block">
-          <h3>{{ t.select_outcome_title }}</h3>
-          <div class="outcome-list">
-            {% for o in step.outcomes %}
-            <label class="outcome-card" data-outcome-id="{{ o.outcome_id }}" data-result-code="{{ o.result_code }}">
-              <input type="radio" name="selection" value="outcome:{{ o.outcome_id }}">
-              <div>
-                <div class="outcome-label">{{ o.label }}</div>
-                <span class="outcome-code code-{{ o.result_code }}">{{ o.result_code }}</span>
-              </div>
-            </label>
-            {% endfor %}
-          </div>
-        </div>
-
-        <details class="fallback-details">
-          <summary>{{ t.fallback_outcomes_title }}</summary>
-          <div class="outcome-list">
-            <label class="outcome-card">
-              <input type="radio" name="selection" value="fallback:inconclusive">
-              <div>{{ t.fallback_inconclusive }}</div>
-            </label>
-            <label class="outcome-card">
-              <input type="radio" name="selection" value="fallback:not_performed">
-              <div>{{ t.fallback_not_performed }}</div>
-            </label>
-            <label class="outcome-card">
-              <input type="radio" name="selection" value="fallback:unable_to_perform">
-              <div>{{ t.fallback_unable }}</div>
-            </label>
-          </div>
-        </details>
-
-        <div class="form-group">
-          <label for="user_notes">{{ t.label_user_notes }}</label>
-          <input type="text" id="user_notes" name="user_notes" placeholder="{{ t.placeholder_notes }}">
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-lg">{{ t.btn_submit_step }} &rarr;</button>
-      </form>
-    </section>
-
-    <!-- Emergency Safety Red Flags -->
-    {% if step.workflow_safety_red_flags %}
-    <section class="card safety-card">
-      <details>
-        <summary class="safety-summary">🚨 {{ t.safety_stop_title }}</summary>
-        <p class="muted small">{{ t.safety_stop_desc }}</p>
-        <form method="post" action="{{ url_for('main.submit_step', session_id=session.session_id) }}" class="stack-form">
-          {% for rf in step.workflow_safety_red_flags %}
-          <label class="outcome-card danger-card">
-            <input type="radio" name="safety_flag_id" value="{{ rf.flag_id }}" required>
+        <h3>{{ t.select_outcome_title }}</h3>
+        <div class="outcome-list">
+          {% for o in step.outcomes %}
+          <label class="outcome-card" data-outcome-id="{{ o.outcome_id }}" data-result-code="{{ o.result_code }}">
+            <input type="radio" name="selection" value="outcome:{{ o.outcome_id }}">
             <div>
-              <strong>{{ rf.flag_id }}:</strong> {{ rf.label }}
+              <div class="outcome-label">{{ o.label }}</div>
+              <span class="outcome-code code-{{ o.result_code }}">{{ o.result_code }}</span>
             </div>
           </label>
           {% endfor %}
-          <input type="text" name="user_notes" placeholder="{{ t.placeholder_notes }}">
-          <button type="submit" class="btn btn-danger">{{ t.btn_trigger_safety }}</button>
-        </form>
-      </details>
-    </section>
-    {% endif %}
-  </div>
-
-  <!-- RIGHT: Cross-OS Learning Drawer + Diagnostic Trail -->
-  <aside class="workbench-side">
-    <section class="card learning-card">
-      <h2>📘 {{ t.learning_drawer_title }}</h2>
-
-      <div class="learning-sec">
-        <h4>{{ t.learning_why }}</h4>
-        <p>{{ step.learning_content.why_this_step }}</p>
-      </div>
-
-      <div class="learning-sec">
-        <h4>{{ t.learning_principle }}</h4>
-        <p>{{ step.learning_content.technical_principle }}</p>
-      </div>
-
-      <div class="learning-sec">
-        <h4>{{ t.learning_limitations }}</h4>
-        <p>{{ step.learning_content.limitations }}</p>
-      </div>
-
-      {% if step.os_variants %}
-      <div class="learning-sec">
-        <h4>{{ t.learning_os_compare }}</h4>
-        <div class="os-tabs" role="tablist">
-          {% for os_key in ['windows', 'linux', 'macos'] %}
-            {% if os_key in step.os_variants %}
-            <button
-              type="button"
-              class="os-tab {% if os_key == session.target_os %}active{% endif %}"
-              data-os-tab="{{ os_key }}"
-            >{{ os_key | upper }}</button>
-            {% endif %}
-          {% endfor %}
         </div>
+      </div>
+
+      <details class="fallback-details">
+        <summary>{{ t.fallback_outcomes_title }}</summary>
+        <div class="outcome-list">
+          <label class="outcome-card">
+            <input type="radio" name="selection" value="fallback:inconclusive">
+            <div>{{ t.fallback_inconclusive }}</div>
+          </label>
+          <label class="outcome-card">
+            <input type="radio" name="selection" value="fallback:not_performed">
+            <div>{{ t.fallback_not_performed }}</div>
+          </label>
+          <label class="outcome-card">
+            <input type="radio" name="selection" value="fallback:unable_to_perform">
+            <div>{{ t.fallback_unable }}</div>
+          </label>
+        </div>
+      </details>
+
+      <div class="form-group">
+        <label for="user_notes">{{ t.label_user_notes }}</label>
+        <input type="text" id="user_notes" name="user_notes" placeholder="{{ t.placeholder_notes }}">
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg">{{ t.btn_submit_step }} &rarr;</button>
+    </form>
+  </section>
+
+  <!-- Emergency Safety Red Flags -->
+  {% if step.workflow_safety_red_flags %}
+  <section class="card safety-card">
+    <details>
+      <summary class="safety-summary">🚨 {{ t.safety_stop_title }}</summary>
+      <p class="muted small">{{ t.safety_stop_desc }}</p>
+      <form method="post" action="{{ url_for('main.submit_step', session_id=session.session_id) }}" class="stack-form">
+        {% for rf in step.workflow_safety_red_flags %}
+        <label class="outcome-card danger-card">
+          <input type="radio" name="safety_flag_id" value="{{ rf.flag_id }}" required>
+          <div>
+            <strong>{{ rf.flag_id }}:</strong> {{ rf.label }}
+          </div>
+        </label>
+        {% endfor %}
+        <input type="text" name="user_notes" placeholder="{{ t.placeholder_notes }}">
+        <button type="submit" class="btn btn-danger">{{ t.btn_trigger_safety }}</button>
+      </form>
+    </details>
+  </section>
+  {% endif %}
+</div>
+
+<!-- Bottom-Right Floating Action Buttons (Icons) -->
+<div class="fab-stack">
+  <button
+    type="button"
+    class="fab-btn fab-progress"
+    data-open-drawer="drawer-progress"
+    title="{{ t.fab_progress }}"
+    aria-label="{{ t.fab_progress }}"
+  >
+    <span class="fab-icon">🧭</span>
+    <span class="fab-text">{{ t.fab_progress }}</span>
+    {% if session.history %}
+      <span class="fab-badge">{{ session.history | length }}</span>
+    {% endif %}
+  </button>
+
+  <button
+    type="button"
+    class="fab-btn fab-learning"
+    data-open-drawer="drawer-learning"
+    title="{{ t.fab_learning }}"
+    aria-label="{{ t.fab_learning }}"
+  >
+    <span class="fab-icon">📘</span>
+    <span class="fab-text">{{ t.fab_learning }}</span>
+  </button>
+</div>
+
+<!-- Backdrop -->
+<div id="drawer-backdrop" class="drawer-backdrop hidden"></div>
+
+<!-- Slide-Over Drawer 1: Learning Notes (學習筆記) -->
+<aside id="drawer-learning" class="side-drawer hidden" aria-hidden="true">
+  <div class="drawer-header">
+    <h2>📘 {{ t.learning_drawer_title }}</h2>
+    <button type="button" class="btn btn-xs btn-outline drawer-close" aria-label="{{ t.btn_close }}">✕ {{ t.btn_close }}</button>
+  </div>
+  <div class="drawer-body">
+    <div class="learning-sec">
+      <h4>{{ t.learning_why }}</h4>
+      <p>{{ step.learning_content.why_this_step }}</p>
+    </div>
+
+    <div class="learning-sec">
+      <h4>{{ t.learning_principle }}</h4>
+      <p>{{ step.learning_content.technical_principle }}</p>
+    </div>
+
+    <div class="learning-sec">
+      <h4>{{ t.learning_limitations }}</h4>
+      <p>{{ step.learning_content.limitations }}</p>
+    </div>
+
+    {% if step.os_variants %}
+    <div class="learning-sec">
+      <h4>{{ t.learning_os_compare }}</h4>
+      <div class="os-tabs" role="tablist">
         {% for os_key in ['windows', 'linux', 'macos'] %}
           {% if os_key in step.os_variants %}
-          {% set v = step.os_variants[os_key] %}
-          <div class="os-panel {% if os_key != session.target_os %}hidden{% endif %}" data-os-panel="{{ os_key }}">
-            {% if v.command %}
-              <pre class="code-box small-code"><code>{{ v.command }}</code></pre>
-            {% endif %}
-            {% if v.gui_path %}
-              <p class="small"><strong>GUI:</strong> {{ v.gui_path }}</p>
-            {% endif %}
-            <ul class="small-list">
-              {% for inst in v.instructions %}
-                <li>{{ inst }}</li>
-              {% endfor %}
-            </ul>
-          </div>
+          <button
+            type="button"
+            class="os-tab {% if os_key == session.target_os %}active{% endif %}"
+            data-os-tab="{{ os_key }}"
+          >{{ os_key | upper }}</button>
           {% endif %}
         {% endfor %}
       </div>
-      {% endif %}
+      {% for os_key in ['windows', 'linux', 'macos'] %}
+        {% if os_key in step.os_variants %}
+        {% set v = step.os_variants[os_key] %}
+        <div class="os-panel {% if os_key != session.target_os %}hidden{% endif %}" data-os-panel="{{ os_key }}">
+          {% if v.command %}
+            <pre class="code-box small-code"><code>{{ v.command }}</code></pre>
+          {% endif %}
+          {% if v.gui_path %}
+            <p class="small"><strong>GUI:</strong> {{ v.gui_path }}</p>
+          {% endif %}
+          <ul class="small-list">
+            {% for inst in v.instructions %}
+              <li>{{ inst }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
 
-      {% if step.references %}
-      <div class="learning-sec">
-        <h4>{{ t.learning_references }}</h4>
-        <ul class="small-list">
-          {% for ref in step.references %}
-            <li><a href="{{ ref.url }}" target="_blank" rel="noopener noreferrer">{{ ref.title }}</a> ({{ ref.publisher }})</li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
-    </section>
+    {% if step.references %}
+    <div class="learning-sec">
+      <h4>{{ t.learning_references }}</h4>
+      <ul class="small-list">
+        {% for ref in step.references %}
+          <li><a href="{{ ref.url }}" target="_blank" rel="noopener noreferrer">{{ ref.title }}</a> ({{ ref.publisher }})</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</aside>
 
-    <section class="card">
-      <h3>🧭 {{ t.trail_title }}</h3>
+<!-- Slide-Over Drawer 2: Diagnostic Progress & Ruled-Out Causes -->
+<aside id="drawer-progress" class="side-drawer hidden" aria-hidden="true">
+  <div class="drawer-header">
+    <h2>🧭 {{ t.trail_title }}</h2>
+    <button type="button" class="btn btn-xs btn-outline drawer-close" aria-label="{{ t.btn_close }}">✕ {{ t.btn_close }}</button>
+  </div>
+  <div class="drawer-body">
+    <div class="learning-sec">
+      <h4>{{ t.sec_steps }}</h4>
       {% if session.history %}
       <ol class="small-list">
         {% for h in session.history %}
@@ -236,7 +276,9 @@
       {% else %}
         <p class="muted small">Step 1</p>
       {% endif %}
+    </div>
 
+    <div class="learning-sec">
       <h4>{{ t.ruled_out_title }}</h4>
       {% if session.ruled_out_causes %}
       <ul class="small-list">
@@ -247,7 +289,7 @@
       {% else %}
         <p class="muted small">{{ t.no_ruled_out }}</p>
       {% endif %}
-    </section>
-  </aside>
-</div>
+    </div>
+  </div>
+</aside>
 {% endblock %}

@@ -11,7 +11,42 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // 2. Cross-OS Learning Drawer Tabs
+  // 2. Slide-Over Floating Drawers (學習筆記 & 診斷進度)
+  const backdrop = document.getElementById("drawer-backdrop");
+  const closeAllDrawers = () => {
+    document.querySelectorAll(".side-drawer").forEach((drawer) => {
+      drawer.classList.add("hidden");
+      drawer.setAttribute("aria-hidden", "true");
+    });
+    if (backdrop) backdrop.classList.add("hidden");
+  };
+
+  document.querySelectorAll("[data-open-drawer]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.getAttribute("data-open-drawer");
+      const targetDrawer = targetId ? document.getElementById(targetId) : null;
+      if (!targetDrawer) return;
+      const isAlreadyOpen = !targetDrawer.classList.contains("hidden");
+      closeAllDrawers();
+      if (!isAlreadyOpen) {
+        targetDrawer.classList.remove("hidden");
+        targetDrawer.setAttribute("aria-hidden", "false");
+        if (backdrop) backdrop.classList.remove("hidden");
+      }
+    });
+  });
+
+  document.querySelectorAll(".drawer-close").forEach((btn) => {
+    btn.addEventListener("click", closeAllDrawers);
+  });
+  if (backdrop) {
+    backdrop.addEventListener("click", closeAllDrawers);
+  }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeAllDrawers();
+  });
+
+  // 3. Cross-OS Learning Drawer Tabs
   document.querySelectorAll("[data-os-tab]").forEach((tab) => {
     tab.addEventListener("click", () => {
       const target = tab.getAttribute("data-os-tab");

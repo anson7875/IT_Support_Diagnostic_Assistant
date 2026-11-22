@@ -1,0 +1,767 @@
+{
+  "workflows": {
+    "NET-001": {
+      "workflow_name": "無法上網排查（跨作業系統：Windows / Linux / macOS）",
+      "description": "依照 OSI 第 1 至第 7 層由下而上排查 Windows、Linux 或 macOS 無法連線至網際網路的問題。",
+      "safety_red_flags": {
+        "NET-RF-01": {
+          "label": "路由器、數據機或網路孔出現明顯電氣損壞、冒煙或燒焦味",
+          "warning_message": "偵測到電氣危險！請勿觸碰受損的線材或電源變壓器。",
+          "escalation_instruction": "在安全情況下從牆壁插座切斷電源，並立即交由設施管理或專業硬體人員處理。"
+        }
+      },
+      "steps": {
+        "NET-001-S1": {
+          "title": "檢查實體網路線與 Wi-Fi 連線狀態",
+          "objective": "確認裝置已穩固連接網路線，或已連上正確的 Wi-Fi 網路（SSID）。",
+          "instructions": [
+            "確認裝置目前是使用有線網路（Ethernet）還是 Wi-Fi。",
+            "確認飛航模式已關閉，且 Wi-Fi / 有線網卡已啟用。",
+            "若使用有線網路，請確認網路線兩端插緊，並觀察網路孔指示燈是否亮起。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "點擊工作列右下角的網路圖示。",
+                "確認「飛航模式」已關閉，且 Wi-Fi 已連上正確的 SSID（或有線網路顯示「已連線」）。",
+                "也可在「設定 > 網路和網際網路」或終端機輸入下方指令確認網卡狀態。"
+              ],
+              "gui_path": "設定 > 網路和網際網路 > 進階網路設定",
+              "expected_output_hint": "Admin State 顯示 Enabled，State 顯示 Connected"
+            },
+            "linux": {
+              "instructions": [
+                "檢查桌面右上角的網路狀態圖示，或在終端機執行 nmcli 指令。",
+                "確認 Wi-Fi 或有線介面的 STATE 欄位顯示為 connected，而非 disconnected 或 unavailable。"
+              ],
+              "gui_path": "Settings > Network / Wi-Fi",
+              "expected_output_hint": "使用中的網路介面 STATE 欄位顯示為 connected"
+            },
+            "macos": {
+              "instructions": [
+                "點擊螢幕右上角選單列的 Wi-Fi 圖示，或打開「系統設定 > 網路」。",
+                "確認使用中的介面（Wi-Fi 或乙太網路）旁顯示綠色「已連線」圓點。"
+              ],
+              "gui_path": "系統設定 > 網路",
+              "expected_output_hint": "使用中的 Wi-Fi 或乙太網路服務顯示「已連線」"
+            }
+          },
+          "expected_results": "網卡已啟用、飛航模式已關閉，且裝置已連上目標 Wi-Fi 或實體有線網路。",
+          "safety_requirements": [
+            "未經授權請勿任意拔除辦公室共用交換器（Switch）或路由器的電源線。"
+          ],
+          "learning_content": {
+            "why_this_step": "排查網路時永遠要先確認 OSI 第 1 層（實體層）與第 2 層（資料連結層）。如果網卡根本沒連上，後續檢查 IP 或 DNS 都是白費工。",
+            "technical_principle": "OSI 第 1 層負責實體線材、無線電波與燈號，第 2 層負責 Wi-Fi SSID 關聯與乙太網路訊框傳輸；這兩層建立後才能進行第 3 層 IP 通訊。",
+            "limitations": "顯示「已連線」只代表實體或 Wi-Fi 鏈路已建立，並不保證 DHCP 發放 IP、路由或外網都正常。"
+          },
+          "outcomes": {
+            "link_connected": {
+              "label": "網卡已啟用，且已連上實體網路線或正確的 Wi-Fi SSID"
+            },
+            "link_reconnected_resolved": {
+              "label": "發現網路線鬆脫或 Wi-Fi 未連線；重新連接後已恢復上網"
+            },
+            "adapter_missing_or_disabled": {
+              "label": "找不到任何網路卡，或網卡無法啟用／實體燈號完全不亮"
+            }
+          }
+        },
+        "NET-001-S2": {
+          "title": "檢查本機 IP 位址與預設閘道（Default Gateway）",
+          "objective": "確認電腦是否已成功從區域網路的 DHCP 伺服器取得有效的 IPv4 位址與預設閘道。",
+          "instructions": [
+            "開啟終端機或命令提示字元。",
+            "執行對應作業系統的 IP 查詢指令。",
+            "找到目前使用中的 Wi-Fi 或有線網卡，記錄 IPv4 位址與預設閘道。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "開啟命令提示字元（cmd）或 PowerShell。",
+                "執行 `ipconfig /all`，找到使用中的乙太網路或無線區域網路介面卡。",
+                "檢查「IPv4 位址」與「預設閘道」欄位是否有有效位址。"
+              ],
+              "gui_path": "設定 > 網路和網際網路 > [目前連線] > 內容",
+              "expected_output_hint": "取得有效的私有網段 IPv4（如 192.168.x.x 或 10.x.x.x）且預設閘道不為空白"
+            },
+            "linux": {
+              "instructions": [
+                "開啟終端機（Terminal）。",
+                "執行 `ip a` 查看使用中介面（如 eth0、enp0s3、wlan0）的 `inet` IPv4 位址。",
+                "執行 `ip r` 確認存在 `default via <閘道IP>` 的預設路由。"
+              ],
+              "gui_path": "Settings > Network > 目前連線旁的齒輪圖示 > Details",
+              "expected_output_hint": "使用中介面有合法的 `inet` IPv4 位址，且路由表有 `default via <gateway>`"
+            },
+            "macos": {
+              "instructions": [
+                "開啟「終端機（Terminal）」。",
+                "執行 `ifconfig en0`（Wi-Fi 通常為 en0）查看 `inet` 後方的 IPv4 位址。",
+                "執行 `route -n get default` 檢查預設閘道（gateway）。"
+              ],
+              "gui_path": "系統設定 > 網路 > [目前連線] > 詳細資訊 > TCP/IP",
+              "expected_output_hint": "`inet` 顯示有效區網 IP，且 `gateway:` 列出路由器位址"
+            }
+          },
+          "expected_results": "使用中的網路介面擁有有效的區域網路 IPv4 位址（如 192.168.x.x、10.x.x.x、172.16-31.x.x）以及預設閘道。",
+          "safety_requirements": [
+            "此為唯讀查詢指令，不會更動任何系統或網路設定。"
+          ],
+          "learning_content": {
+            "why_this_step": "這一步檢查 OSI 第 3 層定址。若電腦沒有 IP，或拿到 169.254.x.x（APIPA），代表電腦無法向 DHCP 伺服器取得租約，不可能連上外網。",
+            "technical_principle": "DHCP 會動態分配 IP、子網路遮罩、預設閘道與 DNS。當 DHCP 請求失敗時，作業系統會自動指派 169.254.0.0/16（RFC 3927）的連結本機位址，無法路由到網際網路。",
+            "limitations": "取得合法 IP 與閘道只代表 DHCP 成功，尚無法證明閘道器本身回應正常或外網通暢。"
+          },
+          "outcomes": {
+            "valid_ip_and_gateway": {
+              "label": "已取得正常區域網路 IPv4（如 192.168.x.x / 10.x.x.x）且預設閘道不為空"
+            },
+            "apipa_or_no_ip": {
+              "label": "顯示 169.254.x.x（APIPA）、沒有 IPv4 位址，或預設閘道空白"
+            },
+            "interface_down": {
+              "label": "介面顯示 Media disconnected / status: inactive / NO-CARRIER"
+            }
+          }
+        },
+        "NET-001-S2B": {
+          "title": "重新向 DHCP 伺服器取得 IP 租約（Renew DHCP）",
+          "objective": "強制裝置重新發起 DHCP 租約請求，判斷 APIPA 或無 IP 是暫時性問題還是伺服器／網路端故障。",
+          "instructions": [
+            "依作業系統執行 DHCP 續約指令或透過圖形介面重新取得租約。",
+            "等待 5 至 10 秒後，再次檢查是否取得有效的區域網路 IPv4 位址。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "開啟命令提示字元（視需要以系統管理員身分執行）。",
+                "依序執行 `ipconfig /release` 與 `ipconfig /renew`。",
+                "確認是否成功配發新的 IPv4 位址與預設閘道。"
+              ],
+              "gui_path": "設定 > 網路和網際網路 > 關閉再重新開啟 Wi-Fi（或停用再啟用乙太網路）",
+              "expected_output_hint": "配發新的有效 IPv4 位址（非 169.254.x.x）與預設閘道"
+            },
+            "linux": {
+              "instructions": [
+                "開啟終端機。",
+                "使用 `nmcli` 重新啟動網路連線（或視發行版使用 `dhclient` 續約）。"
+              ],
+              "gui_path": "Settings > Network > 將連線開關關閉後再重新開啟",
+              "expected_output_hint": "介面重新連線後，`ip a` 顯示有效的 `inet` 位址"
+            },
+            "macos": {
+              "instructions": [
+                "打開「系統設定 > 網路 > [目前連線] > 詳細資訊 > TCP/IP」，點擊「更新 DHCP 租約」。",
+                "或在終端機執行下方指令（若使用有線網路請將 en0 換成對應介面）。"
+              ],
+              "gui_path": "系統設定 > 網路 > [目前連線] > 詳細資訊 > TCP/IP > 更新 DHCP 租約",
+              "expected_output_hint": "TCP/IP 頁面出現有效的 IPv4 位址與路由器位址"
+            }
+          },
+          "expected_results": "裝置成功從 DHCP 伺服器取得有效的區域網路 IPv4 與預設閘道。",
+          "safety_requirements": [
+            "此指令會修改目前網路狀態，執行瞬間會中斷區域網路連線。",
+            "請勿在透過同一張網卡進行遠端連線（SSH / RDP）時執行，以免斷線失聯。"
+          ],
+          "learning_content": {
+            "why_this_step": "手動觸發 DHCP 的 DORA（Discover → Offer → Request → Ack）流程，可區分是本機舊租約卡住，還是上游 DHCP 伺服器或交換器 VLAN 有問題。",
+            "technical_principle": "DHCP 透過 UDP 67/68 埠進行廣播交握。若續約依然失敗，通常代表 DHCP 位址池已滿、DHCP 服務當機，或交換器連接埠 VLAN 設定錯誤。",
+            "limitations": "無法修復上游 DHCP 伺服器故障、MAC 過濾阻擋或交換器 VLAN 錯誤。"
+          },
+          "outcomes": {
+            "dhcp_renewed_valid_ip": {
+              "label": "重新取得租約後，已獲得正常的區域網路 IPv4 位址"
+            },
+            "dhcp_renewal_failed": {
+              "label": "依然顯示 169.254.x.x（APIPA）、逾時或無法取得 IP"
+            }
+          }
+        },
+        "NET-001-S3": {
+          "title": "測試預設閘道連通性（Ping Default Gateway）",
+          "objective": "驗證本機與區域網路路由器（預設閘道）之間的第 3 層連線是否暢通。",
+          "instructions": [
+            "使用上一步記錄到的預設閘道 IP（例如 192.168.1.1）。",
+            "向預設閘道發送 4 個 ICMP Ping 封包。",
+            "觀察封包遺失率（Packet Loss）與回應延遲時間。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "開啟命令提示字元或 PowerShell。",
+                "執行 `ping <預設閘道IP>`（Windows 預設會發送 4 個封包後自動停止）。"
+              ],
+              "expected_output_hint": "已傳送 = 4，已收到 = 4，已遺失 = 0 (0% 遺失)"
+            },
+            "linux": {
+              "instructions": [
+                "開啟終端機。",
+                "執行 `ping -c 4 <預設閘道IP>`（加上 `-c 4` 讓它發送 4 次後停止）。"
+              ],
+              "expected_output_hint": "4 packets transmitted, 4 received, 0% packet loss"
+            },
+            "macos": {
+              "instructions": [
+                "開啟終端機。",
+                "執行 `ping -c 4 <預設閘道IP>`（加上 `-c 4` 限制發送 4 個封包）。"
+              ],
+              "expected_output_hint": "4 packets transmitted, 4 packets received, 0.0% packet loss"
+            }
+          },
+          "expected_results": "4 個封包全部收到回應，0% 封包遺失且延遲低（區網內通常小於 10 ms）。",
+          "safety_requirements": [
+            "唯讀診斷指令；注意 Linux 與 macOS 必須加上 `-c 4`，否則會持續執行直到按 Ctrl+C。"
+          ],
+          "learning_content": {
+            "why_this_step": "Ping 預設閘道能把問題「一分為二」：Ping 不通代表問題出在內部區域網路（本機防火牆、線材、Wi-Fi AP 或路由器）；Ping 得通代表內網正常，問題在路由器往外的連線。",
+            "technical_principle": "Ping 使用 OSI 第 3 層的 ICMP Echo 請求與回應。能 Ping 通閘道代表 ARP 解析、第 2 層交換與本機 IP 路由全部運作正常。",
+            "limitations": "部分企業路由器或防火牆會刻意封鎖 ICMP Ping 回應，可能造成「能上網但 Ping 不通」的假陰性。"
+          },
+          "outcomes": {
+            "gateway_ping_success": {
+              "label": "預設閘道回應正常（0% 封包遺失）"
+            },
+            "gateway_ping_failed": {
+              "label": "100% 封包遺失、要求等候逾時（Request timed out）或無法連線至目的地主機"
+            }
+          }
+        },
+        "NET-001-S4": {
+          "title": "測試外部公開 IP 連通性（Ping 8.8.8.8）",
+          "objective": "不經過 DNS 解析，直接測試流量是否能透過路由器連上外部網際網路。",
+          "instructions": [
+            "直接 Ping 外部公開 IPv4 位址（例如 `8.8.8.8`）。",
+            "觀察是否收到回應與封包遺失率。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": ["在命令提示字元或 PowerShell 執行 `ping 8.8.8.8`。"],
+              "expected_output_hint": "已傳送 = 4，已收到 = 4，已遺失 = 0 (0% 遺失)"
+            },
+            "linux": {
+              "instructions": ["在終端機執行 `ping -c 4 8.8.8.8`。"],
+              "expected_output_hint": "4 packets transmitted, 4 received, 0% packet loss"
+            },
+            "macos": {
+              "instructions": ["在終端機執行 `ping -c 4 8.8.8.8`。"],
+              "expected_output_hint": "4 packets transmitted, 4 packets received, 0.0% packet loss"
+            }
+          },
+          "expected_results": "成功收到來自 8.8.8.8 的回應，0% 封包遺失。",
+          "safety_requirements": ["唯讀診斷指令，不會修改系統設定。"],
+          "learning_content": {
+            "why_this_step": "直接 Ping 公開 IP 可以完全繞過 DNS。如果 `8.8.8.8` Ping 得通但瀏覽器開不了網頁，問題就高度鎖定在 DNS（第 7 層）或瀏覽器 Proxy 設定。",
+            "technical_principle": "成功連到外部公開 IP 代表路由器的 NAT 轉址、ISP 寬頻外線（WAN）與外部 IPv4 路由都正常運作。",
+            "limitations": "在嚴格管控的公司內網，防火牆可能會封鎖對外 ICMP，此時即使外網 HTTP/HTTPS 正常也無法 Ping 通 8.8.8.8。"
+          },
+          "outcomes": {
+            "external_ip_reachable": {
+              "label": "成功收到 8.8.8.8 回應（0% 或極低封包遺失）"
+            },
+            "external_ip_unreachable": {
+              "label": "Ping 8.8.8.8 出現 100% 封包遺失或逾時（雖然閘道器 Ping 得通）"
+            }
+          }
+        },
+        "NET-001-S5": {
+          "title": "驗證 DNS 網域名稱解析",
+          "objective": "確認系統設定的 DNS 伺服器能否正常將網域名稱（如 example.com）解析為 IP 位址。",
+          "instructions": [
+            "依作業系統執行 DNS 查詢指令測試 `example.com`。",
+            "觀察是否成功回傳 IP 位址，還是發生逾時或查無伺服器錯誤。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "開啟命令提示字元或 PowerShell。",
+                "執行 `nslookup example.com`，確認下方是否回傳對應的 IP 位址。"
+              ],
+              "expected_output_hint": "顯示 DNS Server IP 並回傳 example.com 的 Address"
+            },
+            "linux": {
+              "instructions": [
+                "開啟終端機。",
+                "執行 `dig example.com +short`（若未安裝 dig 可改用 `nslookup example.com`）。"
+              ],
+              "expected_output_hint": "回傳一個或多個有效的 IP 位址（例如 93.184.216.34）"
+            },
+            "macos": {
+              "instructions": [
+                "開啟終端機。",
+                "執行 `nslookup example.com`（亦可執行 `scutil --dns` 檢視 macOS 目前設定的 DNS 解析器）。"
+              ],
+              "gui_path": "系統設定 > 網路 > [目前連線] > 詳細資訊 > DNS",
+              "expected_output_hint": "顯示 DNS Server IP 並回傳 example.com 的 Address"
+            }
+          },
+          "expected_results": "DNS 伺服器無逾時地將 `example.com` 解析為有效 IP 位址。",
+          "safety_requirements": ["唯讀診斷指令，不會修改系統設定。"],
+          "learning_content": {
+            "why_this_step": "因為前一步已證實外部 IP（8.8.8.8）可達，若這一步 DNS 失敗，就能直接解釋為何瀏覽器無法透過網址開啟網站。",
+            "technical_principle": "DNS 位於 OSI 第 7 層（通常使用 UDP/TCP 53 埠），負責把網址翻譯成 IP。DNS 設定錯誤、快取損壞或 53 埠被擋，都會導致無法瀏覽網頁。",
+            "limitations": "若 DNS 解析也正常，代表底層網路第 1–7 層都健康，問題應轉向檢查瀏覽器 Proxy、VPN 規則、防毒軟體或目標網站本身故障。"
+          },
+          "outcomes": {
+            "dns_failed": {
+              "label": "DNS 查詢逾時（Timed out）、回傳 SERVFAIL 或找不到伺服器"
+            },
+            "dns_succeeded": {
+              "label": "DNS 成功將 example.com 解析為有效 IP 位址"
+            }
+          }
+        }
+      }
+    },
+    "HW-001": {
+      "workflow_name": "電腦無法開機 / 開機無畫面排查（硬體安全優先）",
+      "description": "以安全為最高原則的桌機與筆電硬體排查流程，涵蓋外部供電、POST 訊號、靜電釋放與顯示器隔離。",
+      "safety_red_flags": {
+        "HW-RF-01": {
+          "label": "出現冒煙、燒焦味（燶味）、火花或明顯燒毀／電氣損傷",
+          "warning_message": "重大安全停止：偵測到電氣起火或觸電風險！請勿嘗試開機或觸碰任何內部零件。",
+          "escalation_instruction": "在安全情況下拔除牆壁插頭，遠離裝置，並立即交由專業硬體維修人員處理。"
+        },
+        "HW-RF-02": {
+          "label": "筆電電池膨脹、機殼隆起或電池漏液",
+          "warning_message": "重大安全停止：膨脹的鋰電池有起火與化學物質外洩風險！切勿穿刺、按壓或繼續充電。",
+          "escalation_instruction": "安全關機並拔除充電器，將裝置移至通風且遠離易燃物處，並交由認證硬體維修中心處理。"
+        },
+        "HW-RF-03": {
+          "label": "裝置剛發生液體潑濺或進水",
+          "warning_message": "重大安全停止：進水裝置通電會造成永久性短路損毀或觸電風險。",
+          "escalation_instruction": "保持關機與斷電狀態，切勿嘗試開機，並交由認證技術人員拆機檢修。"
+        }
+      },
+      "steps": {
+        "HW-001-S1": {
+          "title": "檢查外部電源插座、電源線與電源開關",
+          "objective": "在懷疑內部零件故障前，先確認穩定的電力確實已送達電腦主機或筆電充電器。",
+          "instructions": [
+            "檢查牆壁插座、延長線／防突波拖板是否通電（確認開關為 ON）。",
+            "用另一台確認正常的電器（如手機充電器或檯燈）測試該插座是否有電。",
+            "桌機：確認電源線已插緊，且主機後方電源供應器（PSU）的實體開關（I/O）切在「I（開）」。",
+            "筆電：確認變壓器電源線接頭穩固，並觀察充電指示燈是否亮起。"
+          ],
+          "expected_results": "插座供電正常、電源線無破損且插緊，桌機 PSU 開關在「I」或筆電充電燈亮起。",
+          "safety_requirements": [
+            "絕對不可拆開電源供應器（PSU）或變壓器外殼——內部電容即使拔電仍可能帶有致命高壓。",
+            "請勿使用外皮破損、熔化或異常發燙的電源線。"
+          ],
+          "learning_content": {
+            "why_this_step": "外部供電問題（延長線跳脫、電源線鬆脫、PSU 實體開關被誤關）是最常見且最安全可以優先排除的原因。",
+            "technical_principle": "桌機 PSU 背後有實體總開關（I=開、O=關）與過載保護電路；筆電深度放電後亦需符合瓦數的原廠變壓器才能喚醒充電。",
+            "limitations": "確認牆壁插座有電，並不代表電腦內部的電源供應器或主機板供電模組一定正常。"
+          },
+          "outcomes": {
+            "external_power_verified": {
+              "label": "插座、電源線與 PSU 開關／充電器皆已確認正常，但問題仍然存在"
+            },
+            "power_restored_resolved": {
+              "label": "發現插座、線材或開關問題；修正後電腦已能正常開機"
+            },
+            "charger_or_cord_damaged": {
+              "label": "電源線／變壓器外觀受損，或在正常插座上完全無充電反應"
+            }
+          }
+        },
+        "HW-001-S2": {
+          "title": "觀察按下電源鍵後的反應（燈號、風扇與主機板嗶聲）",
+          "objective": "區分是「完全無電源（No Power）」還是「有通電但無畫面／卡在 POST（No Display）」。",
+          "instructions": [
+            "確實按一下電源鍵，靜靜觀察主機或筆電 10 至 15 秒。",
+            "留意電源燈／鍵盤燈是否亮起、CPU／機殼風扇是否轉動，以及主機板是否發出嗶聲（Beep Code）或亮起除錯燈（CPU/DRAM/VGA/BOOT）。"
+          ],
+          "expected_results": "電源燈亮起、風扇穩定運轉，螢幕顯示 BIOS/UEFI 開機畫面。",
+          "safety_requirements": [
+            "通電觀察時請保持機殼關閉，絕不可在通電狀態下觸碰內部任何硬體零件。"
+          ],
+          "learning_content": {
+            "why_this_step": "區分「完全沒電」與「有電沒畫面」能立刻縮小一半排查範圍：沒電指向供電系統；有電沒畫面則指向螢幕、線材、顯卡或記憶體 POST。",
+            "technical_principle": "開機時 PSU 會送出 Power Good 訊號給主機板，主機板隨即執行 POST（開機自我檢測）初始化 CPU、RAM 與顯示輸出；異常時會透過嗶聲或除錯燈報錯。",
+            "limitations": "風扇會轉只代表有基本電力，不代表 PSU 所有電壓軌（3.3V、5V、12V）都正常供電。"
+          },
+          "outcomes": {
+            "no_power_response": {
+              "label": "完全無反應：沒有燈號、風扇不轉、也沒有任何聲音"
+            },
+            "fans_spin_no_display": {
+              "label": "電源燈亮起且／或風扇有轉，但螢幕完全全黑無畫面"
+            },
+            "beep_or_debug_led_error": {
+              "label": "主機板發出重複嗶聲錯誤碼，或紅／橘色除錯燈（CPU/DRAM/VGA/BOOT）長亮"
+            },
+            "boots_normally": {
+              "label": "電腦正常通電並順利顯示 BIOS 或作業系統畫面"
+            }
+          }
+        },
+        "HW-001-S2B": {
+          "title": "執行安全殘餘靜電釋放（Power Drain / Hard Reset）",
+          "objective": "釋放主機板電容殘留電荷，並重置可能被鎖定的電源／嵌入式控制器（EC）保護電路。",
+          "instructions": [
+            "確認電腦已完全關機。",
+            "拔除電源線，並移除所有外接 USB 裝置、擴充基座（Dock）與外接螢幕。",
+            "長按電源鍵 15 至 20 秒以釋放主機板殘餘電荷。",
+            "只重新接上電源線（先不接其他週邊），再按一次電源鍵測試開機。"
+          ],
+          "expected_results": "保護電路重置，電腦順利通電開機。",
+          "safety_requirements": [
+            "長按電源鍵前，務必先將電源線從插座與裝置完全拔除。",
+            "切勿自行拆解內建不可拆卸電池的筆電，也絕不可拆開電源供應器。",
+            "插拔外部接頭時注意防靜電（ESD）。"
+          ],
+          "learning_content": {
+            "why_this_step": "電力突波或異常的 USB 週邊可能觸發筆電 EC 或桌機 PSU 的過電流保護鎖定；在不拆機的前提下，釋放殘餘電荷往往能立刻恢復開機。",
+            "technical_principle": "拔電後主機板電容仍會殘留微弱電力，長按電源鍵可將待機電路放電並清除異常的電源鎖定狀態。",
+            "limitations": "若內部電源供應器損壞、主機板保險絲燒斷或電池完全故障，靜電釋放將無法修復。"
+          },
+          "outcomes": {
+            "drain_restored_power": {
+              "label": "釋放殘餘電荷後，電腦成功開機恢復正常"
+            },
+            "still_no_power_after_drain": {
+              "label": "釋放殘餘電荷後，電腦仍然完全沒有任何通電反應"
+            }
+          }
+        },
+        "HW-001-S3": {
+          "title": "檢查螢幕電源、輸入訊號源與視訊線材接口",
+          "objective": "確認螢幕本身供電正常、切換至正確的輸入頻道，且視訊線插在正確的顯示輸出孔。",
+          "instructions": [
+            "確認螢幕電源燈亮起，並按下螢幕上的選單（Menu/OSD）鍵，確認螢幕背光與選單正常顯示。",
+            "檢查螢幕的輸入來源（HDMI 1 / HDMI 2 / DisplayPort / USB-C）與目前插的線一致。",
+            "確認視訊線兩端都已插緊。",
+            "若桌機裝有獨立顯示卡（GPU），請確認螢幕線是插在下方獨立顯卡的接口，而非上方主機板內顯接口。"
+          ],
+          "expected_results": "螢幕 OSD 選單正常顯示、輸入源正確，並出現電腦畫面。",
+          "safety_requirements": [
+            "切勿硬插 HDMI／DisplayPort 接頭；拔除 DisplayPort 線材時請先按住接頭卡榫。"
+          ],
+          "learning_content": {
+            "why_this_step": "許多「開機沒畫面」其實只是螢幕選錯輸入源，或是裝有獨立顯卡的桌機誤插到被自動停用的主機板顯示孔。",
+            "technical_principle": "多數主機板偵測到 PCIe 獨立顯卡後會自動關閉內建顯示輸出。測試螢幕本身 OSD 選單也能快速確認螢幕面板與背光是否健康。",
+            "limitations": "螢幕顯示「無訊號（No Signal）」代表螢幕供電正常，但尚未排除線材損壞或電腦主機卡在 POST。"
+          },
+          "outcomes": {
+            "display_restored": {
+              "label": "調整輸入源、重新插緊線材或改插獨立顯卡接口後，畫面已恢復"
+            },
+            "monitor_osd_works_no_signal": {
+              "label": "螢幕有電且顯示「無訊號（No Signal）」，即使接口與輸入源都正確"
+            },
+            "monitor_completely_dead": {
+              "label": "螢幕接在正常插座上依然完全無電源燈、按選單鍵也無反應"
+            }
+          }
+        },
+        "HW-001-S4": {
+          "title": "交叉替換線材／螢幕並隔離外接週邊",
+          "objective": "透過已知正常的線材／螢幕替換測試，排除線材損壞、筆電內建面板故障或外接 USB 裝置卡住開機。",
+          "instructions": [
+            "長按電源鍵 5 秒讓電腦安全關機。",
+            "拔除所有非必要外接週邊（USB Hub、外接硬碟、擴充基座、印表機），只保留電源與顯示器。",
+            "若有備用線材或另一台螢幕／電視，請交叉替換測試（筆電請外接 HDMI / USB-C 螢幕測試）。",
+            "重新開機觀察是否有畫面，同時按幾下鍵盤的 Caps Lock 鍵觀察燈號是否會切換。"
+          ],
+          "expected_results": "改用備用線材／螢幕或移除衝突週邊後，畫面正常顯示。",
+          "safety_requirements": [
+            "插拔擴充基座或更換顯示線材前請先關閉電腦電源。",
+            "除非受過 ESD 防靜電訓練並已完全斷電，否則請勿自行拆機重插記憶體或顯卡。"
+          ],
+          "learning_content": {
+            "why_this_step": "「已知正常零件替換法（Known-Good Substitution）」是硬體排錯核心方法。筆電外接螢幕若能顯示，就能直接證明主機板正常、壞的是筆電內建面板或排線。",
+            "technical_principle": "若 Caps Lock 燈號會隨按鍵亮滅，代表系統已順利通過 POST 並在運作中；若完全無反應且任何螢幕都無畫面，故障點位於內部 POST（RAM / GPU / 主機板）。",
+            "limitations": "內部零件隔離（重插記憶體、清除 CMOS、測試顯卡）需具備防靜電環境與斷電操作規範，應安全轉交專業人員。"
+          },
+          "outcomes": {
+            "display_works_after_isolation": {
+              "label": "更換線材／外接螢幕，或移除外接 USB 裝置後畫面恢復正常"
+            },
+            "no_display_any_configuration": {
+              "label": "即使接上正常線材／螢幕且只接最少週邊，仍然完全無畫面"
+            }
+          }
+        }
+      }
+    },
+    "OS-001": {
+      "workflow_name": "系統卡頓與高資源佔用排查（跨作業系統：Windows / Linux / macOS）",
+      "description": "跨作業系統效能診斷流程，協助定位 Windows、Linux 與 macOS 上的 CPU、記憶體、磁碟 I/O、空間不足或系統日誌異常。",
+      "safety_red_flags": {
+        "OS-RF-01": {
+          "label": "機身異常燙手、傳統硬碟發出異常喀喀異音或聞到燒焦味",
+          "warning_message": "安全停止：疑似嚴重過熱或硬碟機械故障！繼續高負載操作可能導致永久硬體損毀或資料遺失。",
+          "escalation_instruction": "在安全情況下先備份重要檔案，立即關機並交由硬體支援人員檢測。"
+        }
+      },
+      "steps": {
+        "OS-001-S1": {
+          "title": "檢視整體 CPU、記憶體與磁碟使用率",
+          "objective": "先量測哪一項核心系統資源（CPU、RAM 或磁碟）達到飽和，讓後續排查對準真正的瓶頸。",
+          "instructions": [
+            "開啟對應作業系統的資源監視工具。",
+            "連續觀察 15 至 30 秒的整體 CPU %、記憶體使用率／壓力與磁碟活動率。",
+            "記錄持續偏高（例如超過 85–90%）的資源項目。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "按下 `Ctrl + Shift + Esc` 開啟「工作管理員」。",
+                "切換至「效能」分頁（或執行 `perfmon /res` 開啟資源監視器）。",
+                "觀察持續的 CPU %、記憶體 % 與磁碟使用時間 %。"
+              ],
+              "gui_path": "工作管理員 (Ctrl+Shift+Esc) > 效能",
+              "expected_output_hint": "一般輕度使用下：CPU < 30%、記憶體 < 75%、磁碟 < 20%"
+            },
+            "linux": {
+              "instructions": [
+                "開啟終端機執行 `top`（按 `q` 離開）或 `htop`。",
+                "檢視 `%Cpu(s)`（特別注意 `us`、`sy` 與代表磁碟等待的 `wa`）、`MiB Mem` 以及 `load average`。"
+              ],
+              "gui_path": "System Monitor > Resources",
+              "expected_output_hint": "CPU 閒置率 `id` 過低為 CPU 瓶頸；`wa` 過高為磁碟 I/O 瓶頸"
+            },
+            "macos": {
+              "instructions": [
+                "按 `Cmd + Space` 開啟 Spotlight 並啟動「活動監視器（Activity Monitor）」。",
+                "分別檢視 CPU 分頁（閒置 %）、記憶體分頁（記憶體壓力圖表：綠／黃／紅）與磁碟分頁。",
+                "或在終端機執行下方唯讀快照指令。"
+              ],
+              "gui_path": "應用程式 > 工具程式 > 活動監視器",
+              "expected_output_hint": "記憶體壓力應為綠色；輕載時 CPU 閒置應大於 50%"
+            }
+          },
+          "expected_results": "CPU、記憶體與磁碟使用率維持在正常區間，無持續滿載現象。",
+          "safety_requirements": [
+            "此為唯讀監控步驟，目前請勿隨意強制結束不熟悉的系統處理程序。"
+          ],
+          "learning_content": {
+            "why_this_step": "「電腦很慢」只是症狀，不是原因。先量測 CPU、RAM 與磁碟能避免盲目重開機或重灌軟體。",
+            "technical_principle": "作業系統負責排程 CPU、實體記憶體（含交換空間 Swap/Pagefile）與磁碟 I/O 佇列；只要任一子系統塞車，整個介面操作都會嚴重延遲。",
+            "limitations": "單一瞬間的截圖可能漏掉間歇性飆高，建議在卡頓發生時觀察至少 15 至 30 秒。"
+          },
+          "outcomes": {
+            "cpu_saturated": {
+              "label": "CPU 使用率持續偏高（> 85%）或 Linux load average 遠高於核心數"
+            },
+            "memory_saturated": {
+              "label": "記憶體使用率 > 90%、大量使用 Swap／分頁檔，或 macOS 記憶體壓力呈黃／紅色"
+            },
+            "disk_saturated": {
+              "label": "磁碟活動率卡在 100%、Linux I/O 等待（wa）過高，或系統跳出磁碟空間不足警告"
+            },
+            "resources_appear_normal": {
+              "label": "CPU、記憶體與磁碟數值看似正常，但電腦依然明顯卡頓或間歇凍結"
+            }
+          }
+        },
+        "OS-001-S2A": {
+          "title": "找出佔用最高 CPU 的處理程序",
+          "objective": "判斷高 CPU 是由一般使用者應用程式（如瀏覽器分頁、視訊軟體）還是作業系統核心／背景服務引起。",
+          "instructions": [
+            "將執行中的處理程序依 CPU 使用率由高到低排序。",
+            "記錄前 1 至 3 名的處理程序名稱與 CPU 百分比。",
+            "辨別該程序屬於使用者應用程式還是核心系統服務。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "在「工作管理員 > 處理程序」點擊「CPU」欄標題由高到低排序。",
+                "或在 PowerShell 執行下方唯讀指令列出 CPU 時間最高的前 10 個程序。"
+              ],
+              "gui_path": "工作管理員 > 處理程序（依 CPU 排序）",
+              "expected_output_hint": "找出實際佔用最高的程序名稱（如 chrome、Teams、TiWorker、Antimalware Service）"
+            },
+            "linux": {
+              "instructions": [
+                "開啟終端機執行 `ps aux --sort=-%cpu | head -n 11`。",
+                "記下排名最前的 USER、PID、%CPU 與 COMMAND。"
+              ],
+              "gui_path": "System Monitor > Processes（依 % CPU 排序）",
+              "expected_output_hint": "清楚列出佔用最高 CPU 的程序與 PID"
+            },
+            "macos": {
+              "instructions": [
+                "在「活動監視器 > CPU」點擊「% CPU」由高到低排序。",
+                "或在終端機執行 `ps aux -r | head -n 11`。"
+              ],
+              "gui_path": "活動監視器 > CPU 分頁（依 % CPU 排序）",
+              "expected_output_hint": "辨別是使用者 App 還是系統背景程序（如 kernel_task、mds_stores）飆高"
+            }
+          },
+          "expected_results": "明確找出造成高 CPU 負載的特定應用程式或系統服務。",
+          "safety_requirements": [
+            "唯讀檢視步驟。切勿強制結束核心系統程序（如 System、csrss.exe、systemd、kernel_task），否則可能導致系統當機。"
+          ],
+          "learning_content": {
+            "why_this_step": "使用者程式卡死只需儲存檔案後重啟該程式即可；但若是 macOS 的 `kernel_task` 或 Windows 的 `System Interrupts` 飆高，通常代表散熱降頻或驅動／硬體異常。",
+            "technical_principle": "使用者空間程序可在不影響系統穩定下重啟；核心服務則負責硬體中斷、索引、更新與溫控保護。",
+            "limitations": "背景更新（Windows Update `TiWorker`、Linux `apt`、macOS Spotlight `mds_stores`）造成的短暫高 CPU 屬於正常維護行為。"
+          },
+          "outcomes": {
+            "runaway_user_app": {
+              "label": "某個特定使用者應用程式（如瀏覽器、開發工具、會議軟體）佔用絕大部分 CPU"
+            },
+            "system_daemon_high_cpu": {
+              "label": "由系統／核心程序（如 System Interrupts、kernel_task、kworker、防毒服務）佔滿 CPU"
+            }
+          }
+        },
+        "OS-001-S2B": {
+          "title": "檢查記憶體壓力、Swap 使用量與高耗電 RAM 程序",
+          "objective": "判斷記憶體吃緊是因為開啟過多大型程式，還是發生異常的系統／驅動記憶體洩漏（Memory Leak）。",
+          "instructions": [
+            "檢視總實體記憶體、可用記憶體與 Swap／分頁檔使用量。",
+            "將處理程序依記憶體使用量由高到低排序，記錄前 3 名。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "在「工作管理員 > 處理程序」依「記憶體」排序。",
+                "在「效能 > 記憶體」檢視「使用中」、「可用」與「已認可」數值。"
+              ],
+              "gui_path": "工作管理員 > 處理程序（依記憶體排序）與 效能 > 記憶體",
+              "expected_output_hint": "列出佔用最多 MB 的前 10 個程序"
+            },
+            "linux": {
+              "instructions": [
+                "執行 `free -h` 觀察 `available` 可用記憶體與 `Swap` 使用量（注意：`buff/cache` 是可回收快取，不是浪費）。",
+                "執行 `ps aux --sort=-%mem | head -n 11` 列出前 10 大耗記憶體程序。"
+              ],
+              "gui_path": "System Monitor > Processes（依 Memory 排序）",
+              "expected_output_hint": "重點看 `free -h` 的 `available` 欄位而非 `free`，並留意 Swap 是否暴增"
+            },
+            "macos": {
+              "instructions": [
+                "在「活動監視器 > 記憶體」依記憶體排序，並檢視底部的「記憶體壓力」與「使用的交換空間」。",
+                "或在終端機執行 `memory_pressure`。"
+              ],
+              "gui_path": "活動監視器 > 記憶體分頁",
+              "expected_output_hint": "顯示系統剩餘記憶體百分比與壓力等級"
+            }
+          },
+          "expected_results": "釐清是重度多工應用耗盡記憶體，還是異常的系統核心記憶體洩漏。",
+          "safety_requirements": [
+            "唯讀檢視步驟。關閉高記憶體應用程式前，請提醒使用者先儲存未存檔文件。"
+          ],
+          "learning_content": {
+            "why_this_step": "實體 RAM 耗盡時，作業系統會把資料頻繁搬移到慢速硬碟的 Swap／分頁檔（稱為 Thrashing 抖動），即使 CPU 使用率不高，整台電腦也會卡死。",
+            "technical_principle": "現代系統都會主動把閒置 RAM 拿來當磁碟快取（Linux `buff/cache`、macOS 快取檔案、Windows 待命記憶體）；真正不足要看 Available 可用值與 Swap 壓力。",
+            "limitations": "關閉分頁能暫時舒緩，但若日常工作負載（如 8GB RAM 跑虛擬機加 50 個分頁）長期超標，需評估升級記憶體。"
+          },
+          "outcomes": {
+            "ram_exhausted_by_user_apps": {
+              "label": "多個大型使用者應用程式（瀏覽器、Docker、虛擬機等）合計吃掉絕大多數 RAM"
+            },
+            "abnormal_system_memory_usage": {
+              "label": "高記憶體／Swap 佔用，但沒有任何明顯使用者程式佔用（疑似系統或驅動記憶體洩漏）"
+            }
+          }
+        },
+        "OS-001-S2C": {
+          "title": "檢查磁碟剩餘空間與儲存 I/O 活動",
+          "objective": "確認系統磁碟是否嚴重空間不足（剩餘 < 10%），或出現異常的磁碟讀寫滿載。",
+          "instructions": [
+            "檢查主要作業系統磁碟／分割區的剩餘可用空間。",
+            "觀察磁碟讀寫活動是否持續卡在 100%。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "在檔案總管或「設定 > 系統 > 儲存空間」檢查 C 槽剩餘容量。",
+                "或在 PowerShell 執行下方唯讀指令檢視各磁碟已用與可用 GB。"
+              ],
+              "gui_path": "設定 > 系統 > 儲存空間（與 工作管理員 > 效能 > 磁碟）",
+              "expected_output_hint": "系統槽（C:）建議保留至少 10–15% 剩餘空間"
+            },
+            "linux": {
+              "instructions": [
+                "在終端機執行 `df -h`，檢查 `/` 與 `/home` 的 `Use%` 欄位。",
+                "若空間未滿但無法寫入，可額外用 `df -i` 檢查 inode 是否耗盡。"
+              ],
+              "gui_path": "Disk Usage Analyzer / Settings > Storage",
+              "expected_output_hint": "根目錄 `/` 的 `Use%` 應低於 85–90%"
+            },
+            "macos": {
+              "instructions": [
+                "打開「系統設定 > 一般 > 儲存空間」檢視可用容量。",
+                "或在終端機執行 `df -h /`。"
+              ],
+              "gui_path": "系統設定 > 一般 > 儲存空間",
+              "expected_output_hint": "系統磁碟建議保留至少 15–20 GB（或 > 10%）可用空間"
+            }
+          },
+          "expected_results": "主要系統磁碟剩餘空間大於 10–15%，且磁碟 I/O 延遲正常。",
+          "safety_requirements": [
+            "唯讀查詢。在刪除檔案或執行磁碟修復工具前，務必建議先備份重要資料。"
+          ],
+          "learning_content": {
+            "why_this_step": "SSD 或系統分割區接近塞滿時，寫入效能會斷崖式下降，並導致虛擬記憶體無法擴張、系統更新或登入失敗。",
+            "technical_principle": "SSD 需要足夠空餘區塊進行垃圾回收與抹寫平均（Wear-Leveling）；作業系統也需要空間存放 Swap 檔、暫存快取與日誌。",
+            "limitations": "空間足夠並不代表硬碟健康；若空間充裕但磁碟 I/O 仍卡 100%，需進入下一步檢查系統日誌是否有壞軌或 I/O 錯誤。"
+          },
+          "outcomes": {
+            "disk_critically_full": {
+              "label": "系統磁碟空間嚴重不足（剩餘 < 10% 或少於 5 GB）"
+            },
+            "disk_space_ok_io_high": {
+              "label": "磁碟剩餘空間充裕（> 15%），但磁碟 I/O 依然持續滿載"
+            }
+          }
+        },
+        "OS-001-S3": {
+          "title": "檢視作業系統日誌（硬體、磁碟、過熱或驅動錯誤）",
+          "objective": "從系統官方日誌收集具體且帶時間戳記的錯誤證據（如磁碟壞軌重試、OOM Killer、溫控降頻或驅動當機）。",
+          "instructions": [
+            "開啟對應作業系統的日誌檢視工具，或執行下方唯讀查詢指令。",
+            "尋找過去 30 分鐘至 24 小時內重複出現的 Error / Critical 錯誤（特別是磁碟、核心、溫控或驅動項目）。"
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "開啟「事件檢視器（eventvwr.msc）> Windows 記錄 > 系統」，篩選「重大」與「錯誤」層級。",
+                "或在 PowerShell 執行下方唯讀指令列出最新 20 筆系統錯誤。"
+              ],
+              "gui_path": "事件檢視器 (eventvwr.msc) > Windows 記錄 > 系統",
+              "expected_output_hint": "留意重複出現的 Disk（事件識別碼 7/51/129）、Kernel-Power 或驅動程式錯誤"
+            },
+            "linux": {
+              "instructions": [
+                "開啟終端機執行 `journalctl -p err -n 30 --no-pager` 檢視近期系統錯誤日誌。",
+                "亦可執行 `dmesg -T --level=err,warn | tail -n 20` 檢視核心與硬體訊息。"
+              ],
+              "gui_path": "Logs (GNOME Logs) > Important / System",
+              "expected_output_hint": "留意 I/O 錯誤（`blk_update_request`）、`Out of memory`（OOM）或過熱降頻警告"
+            },
+            "macos": {
+              "instructions": [
+                "開啟「應用程式 > 工具程式 > 系統監視程式（Console）」檢視當機報告與系統錯誤。",
+                "或在終端機執行下方唯讀 `log show` 指令查詢近 15 分鐘錯誤日誌。"
+              ],
+              "gui_path": "應用程式 > 工具程式 > Console > Crash Reports / system.log",
+              "expected_output_hint": "留意重複出現的磁碟 I/O 錯誤、核心擴充或 watchdog／溫控警告"
+            }
+          },
+          "expected_results": "近期系統日誌中沒有重複出現的重大硬體、磁碟、核心或驅動錯誤。",
+          "safety_requirements": [
+            "唯讀日誌查詢。在備份使用者資料前，請勿執行具破壞性的系統重設或磁碟格式化指令。"
+          ],
+          "learning_content": {
+            "why_this_step": "系統日誌提供肉眼看不到的權威證據（例如背景靜默的硬碟讀取重試、Linux OOM 殺程序或 Windows 驅動重啟），能大幅加快 L1 轉交 L2 的排錯效率。",
+            "technical_principle": "三大作業系統皆內建集中式事件日誌機制（Windows Event Log、Linux systemd-journald、macOS Unified Logging），記錄核心、驅動與系統服務異常。",
+            "limitations": "日誌裡常混雜無害的背景警告，判讀時務必將錯誤時間戳記與使用者實際感到卡頓的時間點交叉比對。"
+          },
+          "outcomes": {
+            "critical_log_errors_found": {
+              "label": "日誌中發現重複的重大／錯誤紀錄（如磁碟 I/O 錯誤、OOM、過熱降頻或驅動崩潰）"
+            },
+            "no_critical_log_errors": {
+              "label": "系統日誌中沒有明顯重大錯誤，但卡頓問題依然持續"
+            }
+          }
+        }
+      }
+    }
+  }
+}
