@@ -1,8 +1,8 @@
 # IT Support Diagnostic & Case Management System
 
 **Document Type:** System Architecture  
-**Version:** 1.0  
-**Project Status:** Initial Design
+**Version:** 1.1  
+**Project Status:** Design Aligned (Pre-Schema Validation)
 
 ---
 
@@ -73,6 +73,7 @@ Main modules:
 
 - keyword_extractor.py
 - classifier.py
+- output_parser.py
 - diagnostic_engine.py
 - troubleshooting.py
 
@@ -80,11 +81,12 @@ Responsibilities:
 
 - Extract relevant information from incident descriptions.
 - Classify incident categories.
+- Parse pasted terminal outputs for supported commands into structured observations.
 - Select diagnostic workflows.
-- Execute diagnostic steps.
-- Evaluate test results.
+- Execute diagnostic steps (adapting instructions to target OS: Windows, Linux, macOS).
+- Evaluate test results and outcome selections.
 - Determine conditional branches.
-- Identify escalation conditions.
+- Identify escalation and safety-stop conditions.
 
 #### Knowledge Layer
 
@@ -93,9 +95,9 @@ Responsible for maintaining diagnostic knowledge independently from application 
 Main modules and data:
 
 - knowledge_base.py
-- hardware_rules.json
-- windows_rules.json
-- network_rules.json
+- app/data/hardware_rules.json
+- app/data/os_rules.json
+- app/data/network_rules.json
 
 Responsibilities:
 
@@ -213,9 +215,9 @@ Classify incidents into supported technical categories.
 
 Initial categories:
 
-- Hardware
-- Windows
-- Networking
+- Hardware (`hardware`)
+- Operating Systems (`os` — Windows, Linux, macOS)
+- Networking (`network` — cross-OS)
 
 Input:
 
@@ -226,6 +228,20 @@ Output:
 Classification result, including category and confidence or matching information.
 
 The classifier should support ambiguous and unsupported incidents without forcing an incorrect classification.
+
+### 3.2.1 output_parser.py
+
+Purpose:
+
+Provide lightweight, deterministic parsing of raw terminal command outputs pasted by the user (e.g., `ping`, `ipconfig`, `ifconfig`, `ip a`).
+
+Input:
+
+Command type (parser key), target OS, and raw terminal output text.
+
+Output:
+
+Structured extracted metrics (e.g., IP address, APIPA flag, packet loss percentage, average latency), suggested normalized result code, and parsing notes. If output cannot be reliably parsed, returns an `inconclusive` suggestion without guessing.
 
 ### 3.3 diagnostic_engine.py
 
@@ -302,20 +318,23 @@ Responsibilities:
 
 Purpose:
 
-Generate structured incident reports.
+Generate structured, handoff-ready incident and escalation reports (suitable for L1-to-L2 ticket handoff).
 
 Report information includes:
 
-- Incident summary
+- Incident summary and target OS environment
 - Reported symptoms
 - Diagnostic workflow
 - Tests performed
-- Test results
+- Test results and parsed command outputs
 - Evidence
+- Ruled-out causes
 - Findings
 - Root cause status
-- Resolution
-- Recommendations
+- Resolution (if resolved)
+- Escalation notes and recommendations
+
+Supports exporting or rendering in clean structured formats (e.g., Markdown and printable HTML).
 
 Reports must distinguish confirmed findings from suspected causes.
 
@@ -356,11 +375,11 @@ Responsibilities:
 
 Diagnostic knowledge must be stored separately from the diagnostic engine.
 
-Initial knowledge files:
+Initial knowledge files (stored in `app/data/`):
 
-- hardware_rules.json
-- windows_rules.json
-- network_rules.json
+- `app/data/hardware_rules.json`
+- `app/data/os_rules.json`
+- `app/data/network_rules.json`
 
 Each file will contain workflows relevant to its category.
 
@@ -514,6 +533,7 @@ IT_Support_Diagnostic_Assistant/
 │   │   ├── __init__.py
 │   │   ├── classifier.py
 │   │   ├── keyword_extractor.py
+│   │   ├── output_parser.py
 │   │   ├── diagnostic_engine.py
 │   │   └── troubleshooting.py
 │   │
@@ -533,7 +553,7 @@ IT_Support_Diagnostic_Assistant/
 │   │
 │   ├── data/
 │   │   ├── hardware_rules.json
-│   │   ├── windows_rules.json
+│   │   ├── os_rules.json
 │   │   └── network_rules.json
 │   │
 │   ├── templates/
@@ -542,6 +562,7 @@ IT_Support_Diagnostic_Assistant/
 ├── tests/
 │   ├── test_classifier.py
 │   ├── test_keyword_extractor.py
+│   ├── test_output_parser.py
 │   ├── test_knowledge_base.py
 │   └── test_diagnostic_engine.py
 │

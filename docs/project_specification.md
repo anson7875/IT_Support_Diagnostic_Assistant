@@ -1,9 +1,9 @@
 # IT Support Diagnostic & Case Management System
 
 **Document Type:** Product Specification  
-**Version:** 1.0  
-**Project Status:** Initial Design  
-**Product Direction:** Hybrid — Professional IT Diagnostic Platform + IT Support Learning Platform
+**Version:** 1.1  
+**Project Status:** Design Aligned (Pre-Schema Validation)  
+**Product Direction:** Hybrid — Professional IT Diagnostic Platform + Cross-OS IT Support Learning Platform
 
 ---
 
@@ -91,23 +91,19 @@ Supported topics include:
 - Cooling and overheating
 - Monitor and display connectivity
 
-### 4.2 Windows Diagnostics
+### 4.2 Operating System Diagnostics (Windows, Linux, macOS)
 
-Supported topics include:
+Supported topics include cross-OS equivalents and OS-specific procedures:
 
-- Windows startup failures
-- Blue Screen of Death (BSOD)
+- OS startup and boot failures
+- System crashes (Windows BSOD, Linux kernel panic, macOS kernel panic)
 - Unexpected shutdowns
-- Slow system performance
-- High CPU, RAM, and disk usage
-- Device Manager problems
-- Driver-related issues
-- Windows Update problems
-- System File Checker (SFC)
-- DISM
-- Event Viewer
+- Slow system performance and high CPU, RAM, or disk usage
+- Device and driver issues (Device Manager, `lspci`/`lsusb`/`dmesg`, System Information)
+- OS updates and repair tools (SFC/DISM, `apt`/`dnf`/`systemctl`, Disk Utility/First Aid)
+- System logs (Event Viewer, `journalctl`/`/var/log`, Console.app/`log show`)
 
-### 4.3 Networking Diagnostics
+### 4.3 Networking Diagnostics (Cross-OS: Windows, Linux, macOS)
 
 Supported topics include:
 
@@ -119,13 +115,12 @@ Supported topics include:
 - DNS resolution failures
 - Network adapter problems
 - Packet loss and latency
-- ipconfig
-- ping
-- tracert
-- nslookup
-- netstat
+- Cross-OS diagnostic tools:
+  - Windows: `ipconfig`, `ping`, `tracert`, `nslookup`, `netstat`
+  - Linux: `ip a` / `ip r`, `ping`, `traceroute`, `dig` / `nslookup`, `ss`
+  - macOS: `ifconfig` / `networksetup`, `ping`, `traceroute`, `scutil --dns` / `nslookup`, `netstat`
 
-The knowledge base must support future expansion into additional IT support categories.
+The knowledge base must support future expansion into additional IT support categories and OS platforms.
 
 ---
 
@@ -153,9 +148,9 @@ The system shall classify incidents into supported technical categories.
 
 Initial categories:
 
-- Hardware
-- Windows
-- Networking
+- Hardware (`hardware`)
+- Operating Systems (`os` — Windows, Linux, macOS)
+- Networking (`network` — cross-OS)
 
 The classification mechanism should support future expansion.
 
@@ -248,26 +243,35 @@ The system shall distinguish between:
 
 A suspected cause must not automatically be recorded as a confirmed root cause.
 
-### FR-10: Incident Report Generation
+### FR-10: Incident & Escalation Handoff Report Generation
 
-The system shall generate structured incident reports containing:
+The system shall generate structured, handoff-ready incident reports (suitable for L1-to-L2 escalation) containing:
 
-- Incident summary
+- Incident summary and target OS environment
 - Reported symptoms
 - Device and system information
 - Diagnostic procedures performed
-- Test results
+- Test results and parsed command outputs
 - Evidence collected
-- Findings
-- Root cause status
-- Resolution
-- Recommendations
+- Ruled-out causes
+- Findings and root cause status
+- Resolution (when resolved)
+- Escalation notes and recommendations
 
-### FR-11: Learning Mode
+Reports should be exportable or copyable in clean formats (e.g., Markdown and printable HTML).
 
-The system shall provide technical explanations to help users understand diagnostic procedures and relevant IT concepts.
+### FR-11: Cross-OS Learning Mode
 
-Learning content should be connected to the corresponding diagnostic steps.
+The system shall provide an expandable learning panel connected to each diagnostic step, including:
+
+- Underlying technical principles (e.g., OSI layers, boot sequence, OS resource architecture)
+- Why the step is performed at this point and its limitations
+- Command risk level badge (`read_only`, `system_change`, `destructive`)
+- Side-by-side Windows, Linux, and macOS command and GUI equivalents so learners can compare cross-OS operations
+
+### FR-12: Lightweight Command Output Parser
+
+For selected common diagnostic commands in the MVP (e.g., `ping`, `ipconfig` / `ifconfig` / `ip a`), the system shall allow users to paste raw terminal output and use deterministic Python parsing rules to extract structured evidence and suggest a normalized test result.
 
 ---
 
@@ -447,17 +451,16 @@ The MVP will focus on establishing a reliable diagnostic foundation.
 
 ### Included in MVP
 
-- Natural-language incident input
+- Natural-language incident input and target OS selection (Windows, Linux, macOS)
 - Basic keyword and information extraction
-- Rule-based issue classification
-- Structured JSON knowledge base
-- Diagnostic workflow engine
-- Conditional diagnostic branching
-- Test-result recording
-- Initial evidence representation
-- Flask-based web interface
+- Rule-based issue classification (`hardware`, `os`, `network`)
+- Structured JSON knowledge base with **3 flagship high-depth workflows** (1 Hardware, 1 Cross-OS Operating System, 1 Cross-OS Networking)
+- Diagnostic workflow engine with multi-outcome branching and safety-stop override
+- Lightweight deterministic command output parser for key commands (e.g., `ping`, `ipconfig`/`ifconfig`/`ip a`)
+- Test-result and structured evidence recording
+- Flask-based web interface with expandable Cross-OS Learning Panel
 - SQLite incident storage
-- Basic incident reports
+- Handoff-ready incident & escalation reports (Markdown / printable HTML)
 - Pytest automated tests
 
 ### Excluded from Initial MVP

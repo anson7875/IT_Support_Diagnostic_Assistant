@@ -1,0 +1,475 @@
+{
+  "schema_version": "1.0",
+  "category": "hardware",
+  "workflows": [
+    {
+      "workflow_id": "HW-001",
+      "workflow_name": "PC Does Not Power On / No Display",
+      "category": "hardware",
+      "supported_os": ["all"],
+      "description": "Safety-first hardware diagnostic workflow for desktops and laptops that fail to power on or power on with no display output.",
+      "version": "1.0",
+      "initial_step_id": "HW-001-S1",
+      "safety_red_flags": [
+        {
+          "flag_id": "HW-RF-01",
+          "label": "Smoke, burning smell, sparks, or visible electrical/burn damage",
+          "warning_message": "CRITICAL SAFETY STOP: Electrical fire or shock hazard detected. Do not attempt to power on or touch internal components.",
+          "escalation_instruction": "Unplug power safely from the wall outlet if safe to do so, keep clear of the device, and escalate immediately to certified hardware repair."
+        },
+        {
+          "flag_id": "HW-RF-02",
+          "label": "Swollen laptop battery, bulging case, or leaking battery fluid",
+          "warning_message": "CRITICAL SAFETY STOP: A swollen lithium-ion battery poses a severe fire and chemical hazard. Do not puncture, press, or charge the device.",
+          "escalation_instruction": "Power off safely if possible, disconnect the charger, place in a well-ventilated area away from flammables, and escalate to certified hardware service."
+        },
+        {
+          "flag_id": "HW-RF-03",
+          "label": "Recent liquid spill on or inside the device",
+          "warning_message": "CRITICAL SAFETY STOP: Powering on a liquid-damaged device can cause permanent short-circuit damage or electrical hazard.",
+          "escalation_instruction": "Keep the device powered off and unplugged, and escalate to a certified technician for internal inspection."
+        }
+      ],
+      "steps": [
+        {
+          "step_id": "HW-001-S1",
+          "title": "Verify External Power Source, Outlet, and Power Cable",
+          "objective": "Confirm that stable electrical power is actually reaching the computer or laptop charger before suspecting internal hardware failure.",
+          "instructions": [
+            "Inspect the wall outlet, surge protector, and power strip (confirm the power strip switch is ON).",
+            "Test the wall outlet with a known-working device (such as a lamp or phone charger).",
+            "For desktops: verify the power cord is firmly seated and the rear PSU rocker switch (I/O) is set to 'I' (ON).",
+            "For laptops: verify the AC adapter brick cable is firmly connected and check for a charging indicator LED."
+          ],
+          "test_type": "physical_check",
+          "command_risk_level": "not_applicable",
+          "parser_key": null,
+          "expected_results": "Wall outlet delivers power, cables are firmly seated, PSU switch is ON (desktop) or charger LED lights up (laptop).",
+          "safety_requirements": [
+            "Never open a power supply unit (PSU) or AC power brick — internal capacitors can hold lethal voltage even when unplugged.",
+            "Do not use frayed, melted, or physically damaged power cables."
+          ],
+          "learning_content": {
+            "why_this_step": "External power issues (tripped surge protector, loose IEC power cord, switched-off PSU) are the most common and safest causes to rule out first before assuming motherboard or PSU failure.",
+            "technical_principle": "Desktop PSUs have a physical master switch (I = On, O = Off) and internal protection circuits. Laptops require correct wattage from their AC adapter to charge a deeply depleted battery.",
+            "limitations": "Confirming the wall outlet works does not guarantee the internal PSU or laptop DC-in board is delivering clean DC voltages to the motherboard."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "external_power_verified",
+              "label": "Outlet, power cable, and PSU switch / charger are verified good, but issue persists",
+              "result_code": "normal",
+              "rules_out": [
+                "Dead wall outlet or turned-off surge protector",
+                "Unplugged power cord or desktop PSU switch set to Off"
+              ],
+              "finding_hint": null,
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "HW-001-S2",
+                "summary": "External power confirmed. Proceed to observe power button response, LEDs, fans, and beep codes."
+              }
+            },
+            {
+              "outcome_id": "power_restored_resolved",
+              "label": "Outlet/cable/switch issue found and corrected; computer now powers on normally",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "External power delivery interruption (loose cable, switched-off PSU, or faulty power strip) prevented startup.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Issue resolved after restoring external power connection."
+              }
+            },
+            {
+              "outcome_id": "charger_or_cord_damaged",
+              "label": "Power cord or AC adapter is physically damaged or known-good outlet shows no charger response",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Wall outlet failure"
+              ],
+              "finding_hint": "Evidence-supported faulty or damaged external power cable / AC adapter.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Do not use damaged cables. Escalate for replacement certified power cable or AC adapter."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Confirm whether the outlet was tested with another known-working device."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending external power source check."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to verify external power safely; escalate to on-site IT support."
+            }
+          },
+          "reference_ids": ["REF-HW-SAFETY"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "HW-001-S2",
+          "title": "Observe Power Button Response (LEDs, Fans, and POST Signals)",
+          "objective": "Distinguish between a 'No Power' condition (completely dead) and a 'Power On, No Display / No POST' condition.",
+          "instructions": [
+            "Press the power button once firmly and observe the system for 10-15 seconds.",
+            "Note whether power/keyboard LEDs light up, whether CPU/case fans spin, and whether any motherboard beep codes or diagnostic LEDs appear."
+          ],
+          "test_type": "visual_inspection",
+          "command_risk_level": "not_applicable",
+          "parser_key": null,
+          "expected_results": "Power LED illuminates, fans spin steadily, and the monitor displays the BIOS/UEFI splash screen.",
+          "safety_requirements": [
+            "Keep the computer case closed during powered-on observation. Never touch internal components while power is connected."
+          ],
+          "learning_content": {
+            "why_this_step": "Separating 'No Power' from 'No Display / No POST' immediately narrows the fault domain: No Power points to PSU/battery/motherboard power delivery, whereas fans spinning with no display points to display path, GPU, or RAM/POST.",
+            "technical_principle": "During startup, the PSU sends a 'Power Good' signal to the motherboard, which then runs POST (Power-On Self-Test) to initialize CPU, RAM, and video output. Failures during POST often trigger beep codes or diagnostic LEDs.",
+            "limitations": "Spinning fans alone do not prove the PSU is outputting all required voltage rails (3.3V, 5V, 12V) within specification."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "no_power_response",
+              "label": "Completely dead: no LEDs, no fans, and no sounds at all",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Monitor or display cable fault (system is not powering on)"
+              ],
+              "finding_hint": "No power response observed despite verified wall outlet.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "HW-001-S2B",
+                "summary": "System shows no power response. Perform a safe residual power drain."
+              }
+            },
+            {
+              "outcome_id": "fans_spin_no_display",
+              "label": "Power LED lights up and/or fans spin, but the screen stays completely black",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Complete external power loss"
+              ],
+              "finding_hint": "System receives power (fans/LEDs active) but produces no video output.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "HW-001-S3",
+                "summary": "Power is present without display. Proceed to verify monitor, input source, and display cable."
+              }
+            },
+            {
+              "outcome_id": "beep_or_debug_led_error",
+              "label": "Motherboard emits repeated beep codes or a red/amber diagnostic LED (CPU/DRAM/VGA/BOOT) stays lit",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Complete power failure"
+              ],
+              "finding_hint": "Evidence-supported POST hardware fault signaled by motherboard beep codes or debug LEDs.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Record the exact beep pattern or LED label (CPU/DRAM/VGA) and escalate to L2/Hardware Support for ESD-safe component testing."
+              }
+            },
+            {
+              "outcome_id": "boots_normally",
+              "label": "System powers on and displays the BIOS/OS screen normally",
+              "result_code": "normal",
+              "rules_out": [
+                "No-power / no-display hardware fault"
+              ],
+              "finding_hint": "Hardware powers on and passes POST normally; if OS fails to load, switch to OS diagnostics.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Hardware power and display verified normal."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Clarify whether any lights, fans, or sounds occur when pressing the power button."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending power button observation."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to test power button safely; escalate to hardware support."
+            }
+          },
+          "reference_ids": ["REF-HW-POST"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "HW-001-S2B",
+          "title": "Perform Safe Residual Power Drain (Hard Reset)",
+          "objective": "Discharge residual static charge from motherboard capacitors and reset latched PSU/EC protection circuits.",
+          "instructions": [
+            "Ensure the computer is completely powered off.",
+            "Unplug the power cable (and disconnect all USB peripherals, docking stations, and external monitors).",
+            "Press and hold the power button for 15-20 seconds to drain residual charge.",
+            "Reconnect ONLY the power cable (no extra peripherals) and press the power button once."
+          ],
+          "test_type": "physical_check",
+          "command_risk_level": "not_applicable",
+          "parser_key": null,
+          "expected_results": "Power protection resets and the computer powers on normally.",
+          "safety_requirements": [
+            "Disconnect the power cable from the wall/device BEFORE holding the power button.",
+            "Do NOT disassemble laptops with sealed internal batteries or open desktop power supply units.",
+            "Ground yourself to avoid electrostatic discharge (ESD) when handling external connectors."
+          ],
+          "learning_content": {
+            "why_this_step": "Power surges or faulty USB peripherals can trip over-current protection in a laptop's Embedded Controller (EC) or desktop PSU. Draining residual capacitor charge resets these protection latches without opening the case.",
+            "technical_principle": "Capacitors retain small charges after unplugging. Holding the power button while disconnected discharges the standby power rails and clears transient EC/CMOS power states.",
+            "limitations": "Cannot fix failed internal PSUs, blown motherboard fuses, or dead internal batteries."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "drain_restored_power",
+              "label": "Computer powers on normally after the residual power drain",
+              "result_code": "normal",
+              "rules_out": [
+                "Permanent PSU or motherboard power failure"
+              ],
+              "finding_hint": "Transient power protection latch or faulty external peripheral prevented power-on; resolved by residual power drain.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Power restored after hard reset. Reconnect peripherals one by one to check if a specific peripheral triggers the fault."
+              }
+            },
+            {
+              "outcome_id": "still_no_power_after_drain",
+              "label": "Computer still shows zero signs of power after residual drain",
+              "result_code": "abnormal",
+              "rules_out": [
+                "External outlet/cable issue",
+                "Transient EC/PSU protection latch",
+                "External USB peripheral short"
+              ],
+              "finding_hint": "Evidence-supported internal power delivery failure (suspected PSU, power button switch, DC jack, or motherboard).",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to certified hardware technician for PSU tester / multimeter bench diagnostics. Do not open the PSU."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Confirm the power cord and all USB devices were disconnected during the 15-second hold."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending residual power drain."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to perform power drain safely; escalate to hardware support."
+            }
+          },
+          "reference_ids": ["REF-HW-SAFETY"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "HW-001-S3",
+          "title": "Verify Monitor Power, Input Source, and Video Cable",
+          "objective": "Confirm that the monitor itself is powered on, set to the matching input channel, and connected to the correct video port.",
+          "instructions": [
+            "Check that the monitor power LED is on and press the monitor's Menu/OSD button to confirm the screen backlight works.",
+            "Verify the monitor's Input Source (HDMI 1, HDMI 2, DisplayPort, USB-C) matches the plugged-in cable.",
+            "Confirm the display cable is firmly seated at both ends.",
+            "For desktops with a dedicated graphics card (GPU): ensure the monitor is plugged into the lower GPU ports, not the motherboard onboard port."
+          ],
+          "test_type": "physical_check",
+          "command_risk_level": "not_applicable",
+          "parser_key": null,
+          "expected_results": "Monitor OSD menu is visible, input source matches the cable, and video signal appears.",
+          "safety_requirements": [
+            "Do not force HDMI/DisplayPort connectors into the wrong port; press the release latch on DisplayPort cables before unplugging."
+          ],
+          "learning_content": {
+            "why_this_step": "Many 'No Display' tickets are actually monitor input mismatches or desktops plugged into disabled motherboard video ports when a dedicated GPU is installed.",
+            "technical_principle": "When a discrete PCIe GPU is installed, most motherboards automatically disable integrated graphics ports by default. Checking the monitor's On-Screen Display (OSD) also proves whether the monitor panel and backlight are functional.",
+            "limitations": "A working OSD menu proves the monitor has power, but does not rule out a bad video cable or a computer failing POST."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "display_restored",
+              "label": "Correcting the input source, cable, or GPU port restored the display",
+              "result_code": "normal",
+              "rules_out": [
+                "Internal GPU/RAM/motherboard failure"
+              ],
+              "finding_hint": "Display cable seating, wrong monitor input source, or wrong video port caused the blank screen.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Display restored after correcting monitor/cable configuration."
+              }
+            },
+            {
+              "outcome_id": "monitor_osd_works_no_signal",
+              "label": "Monitor powers on and shows 'No Signal', even on the correct input and port",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Dead monitor power",
+                "Wrong monitor input selection"
+              ],
+              "finding_hint": "Monitor is functional, but receives no video signal from the computer.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "HW-001-S4",
+                "summary": "Proceed to test with an alternate cable/display and minimal peripherals."
+              }
+            },
+            {
+              "outcome_id": "monitor_completely_dead",
+              "label": "Monitor shows no power LED and no OSD menu even on a known-good wall outlet",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Computer video output fault (unverified until monitor replaced)"
+              ],
+              "finding_hint": "Evidence-supported monitor power or hardware failure.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Test with a spare monitor or escalate for monitor replacement/repair."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Confirm whether the monitor displays an On-Screen Display (OSD) menu or 'No Signal' message."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending monitor and cable check."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to inspect monitor connections; escalate to on-site IT support."
+            }
+          },
+          "reference_ids": ["REF-HW-POST"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "HW-001-S4",
+          "title": "Isolate Video Cable, Alternate Display, and External Peripherals",
+          "objective": "Rule out a defective display cable, faulty video port, or a hung boot caused by an external USB device.",
+          "instructions": [
+            "Power off the computer safely by holding the power button for 5 seconds.",
+            "Disconnect all non-essential external peripherals (USB hubs, external drives, docks, printers), leaving only power and display connected.",
+            "If available, swap to a known-good video cable or connect to an alternate monitor/TV (for laptops, test an external monitor via HDMI/USB-C).",
+            "Power the system back on and observe whether any image appears (also test Caps Lock LED response on the keyboard)."
+          ],
+          "test_type": "physical_check",
+          "command_risk_level": "not_applicable",
+          "parser_key": null,
+          "expected_results": "Display output appears on the known-good cable/monitor or after removing conflicting USB peripherals.",
+          "safety_requirements": [
+            "Power off the device before disconnecting docking stations or swapping display cables.",
+            "Do not open the computer case to reseat RAM or GPU unless trained in ESD-safe hardware service and the system is fully unplugged."
+          ],
+          "learning_content": {
+            "why_this_step": "Component isolation (known-good substitution) is a core IT troubleshooting principle. Testing a laptop on an external monitor also separates a failed built-in LCD panel from a motherboard/GPU failure.",
+            "technical_principle": "If Caps Lock toggles on the keyboard and an external monitor works on a laptop, the OS/motherboard is running and the fault is isolated to the built-in LCD panel or ribbon cable. If no display works on any port, the fault lies in POST (RAM, GPU, CPU, or motherboard).",
+            "limitations": "Internal component isolation (such as reseating RAM sticks or testing a discrete GPU) requires ESD precautions and powered-off internal access, so it is safely escalated."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "display_works_after_isolation",
+              "label": "Display works with a different cable/monitor or after removing external USB devices",
+              "result_code": "normal",
+              "rules_out": [
+                "Motherboard / CPU / RAM POST failure"
+              ],
+              "finding_hint": "Evidence-supported fault isolated to original display cable, built-in laptop panel, or conflicting external peripheral.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Fault isolated via known-good substitution. Replace the faulty cable/panel or reconnect peripherals one by one."
+              }
+            },
+            {
+              "outcome_id": "no_display_any_configuration",
+              "label": "Still no display on known-good cable/monitor with minimal peripherals connected",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Wall outlet / external power loss",
+                "Monitor power or input mismatch",
+                "Display cable or external USB peripheral conflict"
+              ],
+              "finding_hint": "Evidence-supported internal No-POST / No-Video fault (suspected RAM seating, discrete GPU, or motherboard failure).",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Hardware Technician for ESD-safe internal diagnostics (RAM reseating, CMOS reset, GPU testing) after full power disconnection."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Note whether a spare cable/monitor was available and whether the Caps Lock LED responds."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending cable/peripheral isolation."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "No spare cable/display available for isolation; escalate to on-site L2 Support."
+            }
+          },
+          "reference_ids": ["REF-HW-POST", "REF-HW-SAFETY"],
+          "max_visits": 2
+        }
+      ],
+      "references": [
+        {
+          "reference_id": "REF-HW-SAFETY",
+          "title": "Computer Hardware Safety and ESD Precautions",
+          "publisher": "CompTIA A+ / IT Support Best Practices",
+          "url": "https://www.comptia.org/certifications/a",
+          "description": "Industry-standard safety procedures for power disconnection, PSU hazards, swollen batteries, and ESD prevention."
+        },
+        {
+          "reference_id": "REF-HW-POST",
+          "title": "Power-On Self-Test (POST) and Diagnostic Beep/LED Codes",
+          "publisher": "Intel Support Documentation",
+          "url": "https://www.intel.com/content/www/us/en/support/articles/000005473/boards-and-kits.html",
+          "description": "Technical overview of POST sequences, beep codes, and diagnostic LED indicators during PC boot."
+        }
+      ]
+    }
+  ]
+}

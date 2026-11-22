@@ -101,23 +101,19 @@ Include:
 - Cooling and overheating
 - Monitor and display connectivity
 
-### 4.2 Windows
+### 4.2 Operating Systems (Windows, Linux, macOS)
 
-Include:
+Include cross-platform OS troubleshooting and OS-specific equivalents:
 
-- Windows startup failures
-- Blue Screen of Death (BSOD)
+- OS startup and boot failures
+- System crashes (Windows BSOD, Linux kernel panic, macOS kernel panic)
 - Unexpected shutdowns
-- Slow system performance
-- High CPU, RAM and disk usage
-- Device Manager problems
-- Driver issues
-- Windows Update problems
-- System File Checker (SFC)
-- DISM
-- Event Viewer
+- Slow system performance and high CPU, RAM, or disk usage
+- Device and driver issues (Device Manager, `lspci`/`lsusb`/`dmesg`, System Information)
+- OS updates and package/system repair tools (SFC/DISM, `apt`/`dnf`/`systemctl`, Disk Utility/First Aid)
+- System logs (Event Viewer, `journalctl`/`/var/log`, Console.app/`log show`)
 
-### 4.3 Networking
+### 4.3 Networking (Cross-OS: Windows, Linux, macOS)
 
 Include:
 
@@ -129,14 +125,13 @@ Include:
 - DNS resolution
 - Network adapter problems
 - Packet loss and latency
-- ipconfig
-- ping
-- tracert
-- nslookup
-- netstat
+- Cross-OS diagnostic commands:
+  - Windows: `ipconfig`, `ping`, `tracert`, `nslookup`, `netstat`
+  - Linux: `ip a` / `ip r`, `ping`, `traceroute`, `dig` / `nslookup`, `ss`
+  - macOS: `ifconfig` / `networksetup`, `ping`, `traceroute`, `scutil --dns` / `nslookup`, `netstat`
 
 The knowledge base should be modular so new
-diagnostic categories can be added later.
+diagnostic categories and OS variants can be added later.
 
 ---
 
@@ -182,9 +177,9 @@ Missing information should be requested when necessary.
 
 Classify incidents into supported categories:
 
-- Hardware
-- Windows
-- Networking
+- Hardware (`hardware`)
+- Operating Systems (`os` — Windows, Linux, macOS)
+- Networking (`network` — cross-OS)
 
 Classification should be extensible.
 
@@ -247,27 +242,37 @@ Support:
 - Recording resolution
 - Reviewing previous cases
 
-### 6.7 Incident Reports
+### 6.7 Incident & Escalation Handoff Reports
 
-Generate structured reports containing:
+Generate structured, handoff-ready reports (e.g., for L1-to-L2 escalation) containing:
 
-- Incident summary
+- Incident summary & target OS environment
 - Reported symptoms
 - Device and system information
 - Diagnostic steps performed
-- Test results
+- Test results and parsed command outputs
 - Evidence collected
-- Findings
-- Root cause status
-- Resolution
-- Recommendations
+- Ruled-out causes
+- Findings and root cause status
+- Resolution (if resolved)
+- Escalation notes and recommendations
 
-### 6.8 Learning Mode
+Support exporting or copying reports in clean structured formats (e.g., Markdown / printable HTML).
 
-Provide technical explanations for diagnostic steps.
+### 6.8 Learning Mode (Cross-OS)
 
-The learning content should explain both
-the procedure and the underlying technical principles.
+Provide technical explanations for diagnostic steps via an expandable learning panel.
+
+The learning content should explain:
+
+- The procedure and underlying technical principles (e.g., OSI layers, OS architecture)
+- Test limitations
+- Command risk level (`read_only`, `system_change`, `destructive`)
+- Cross-OS command and GUI equivalents (Windows, Linux, macOS side-by-side comparison)
+
+### 6.9 Lightweight Command Output Parser
+
+Provide deterministic Python regex/rule-based parsing for selected common diagnostic command outputs (e.g., `ping`, `ipconfig` / `ifconfig` / `ip a`) in the MVP to automatically extract structured evidence and suggest normalized test results.
 
 ---
 
@@ -297,6 +302,7 @@ or external services without a clear reason.
 
 - classifier.py
 - keyword_extractor.py
+- output_parser.py
 - diagnostic_engine.py
 - troubleshooting.py
 
@@ -304,14 +310,13 @@ or external services without a clear reason.
 
 - knowledge_base.py
 - hardware_rules.json
-- windows_rules.json
+- os_rules.json
 - network_rules.json
 
 ### Service Module
 
 - incident_service.py
 - report_service.py
-- search_builder.py
 
 ### Database Module
 
@@ -423,49 +428,51 @@ Run relevant tests and verify results.
 
 ## 12. Development Roadmap
 
-Phase 1 — Diagnostic Engine Foundation
+Phase 0 — Project Initialization (Completed)
 
-- Define knowledge base schema
-- Define diagnostic workflow structure
-- Define diagnostic step and branching rules
-- Define evidence and test-result representations
-- Implement initial diagnostic engine
-- Write automated tests
+- Project directory setup and Git initialization
+- Master project instructions (`AGENTS.md`)
 
-Phase 2 — Diagnostic Knowledge Base
+Phase 1 — Product and Technical Design (Completed)
 
-- Hardware workflows
-- Windows workflows
-- Networking workflows
-- Validate diagnostic logic and safety requirements
+- Product specification, architecture, knowledge base design, and development progress tracking
 
-Phase 3 — Flask Web Application
+Phase 2 — Knowledge Base Foundation
 
-- Application setup
-- User interface
-- Incident input
-- Diagnostic workflow interface
+- Finalize and validate JSON schema (supporting Windows/Linux/macOS, multi-outcome branching, learning content, command risk levels, and safety triggers)
+- Create 3 flagship MVP workflows (1 Hardware, 1 Cross-OS Operating System, 1 Cross-OS Networking)
+- Implement `knowledge_base.py` loading and structural validation
+- Write automated knowledge base tests
 
-Phase 4 — Incident Management
+Phase 3 — Diagnostic Engine & Lightweight Output Parser
 
-- SQLite integration
-- Incident records
-- Diagnostic history
-- Evidence storage
+- Implement diagnostic session state, step retrieval, outcome evaluation, conditional branching, cycle control, and safety-stop override
+- Implement lightweight deterministic command output parser (`output_parser.py`) for key commands (e.g., `ping`, `ipconfig`/`ifconfig`/`ip a`)
+- Write diagnostic engine and parser unit tests
 
-Phase 5 — Learning Mode and Reports
+Phase 4 — Incident and Evidence Management
 
-- Technical explanations
-- Learning content
-- Professional incident reports
+- SQLite database schema and initialization
+- Incident records, diagnostic sessions, step results, evidence storage, findings, and resolutions
+- Incident service and database tests
 
-Phase 6 — Quality Assurance and Deployment
+Phase 5 — Flask Web Application
 
-- Expand test coverage
-- Improve documentation
-- GitHub repository maintenance
-- CI/CD
-- Deployment
+- Application setup and routes
+- Incident input interface (including target OS selection)
+- Interactive step-by-step diagnostic workflow interface (with command paste/parse support)
+
+Phase 6 — Reports and Cross-OS Learning Mode
+
+- Handoff-ready incident & escalation report generation (Markdown / printable HTML)
+- Side-by-side cross-OS learning drawer (Windows / Linux / macOS comparison, technical principles, command risk badges)
+
+Phase 7 — Quality Assurance and Deployment
+
+- Expand automated test coverage
+- Review safety requirements and error handling
+- Complete portfolio-ready `README.md`
+- GitHub repository maintenance, CI/CD, and deployment
 
 ---
 
@@ -537,29 +544,18 @@ where appropriate, with clear explanations.
 
 ## 16. Current Project Status
 
-Project setup has started.
-
-The project directory has been created.
+Project setup and foundational design documentation have been completed and aligned for cross-OS support (Windows, Linux, macOS) and focused MVP delivery.
 
 Current task:
-Establish the project documentation
-and define the diagnostic knowledge base design.
+Phase 2.1 — Finalize and validate the Diagnostic Knowledge Base JSON schema, including:
 
-Next recommended technical task:
-
-Define the Diagnostic Knowledge Base schema,
-including:
-
-- Workflow structure
-- Diagnostic step structure
-- Conditional branching
-- Evidence representation
-- Test-result representation
-- Safety warnings
+- Workflow structure (with cross-OS support)
+- Diagnostic step structure (with `os_variants`, `outcomes`, `command_risk_level`, `learning_content`)
+- Conditional branching and cycle limits
+- Evidence and test-result representations
+- Safety warnings and `safety_stop` trigger rules
 - Technical references
 
-Validate the schema using representative
-Hardware, Windows and Networking examples.
+Validate the schema using 3 flagship MVP workflows (Hardware, Cross-OS Operating System, Cross-OS Networking).
 
-Do not begin large-scale implementation
-before the foundational data design is agreed.
+Do not begin large-scale implementation before the foundational JSON schema is finalized and validated.

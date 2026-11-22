@@ -1,9 +1,9 @@
 # Diagnostic Knowledge Base Design
 
-**Document Version:** 1.1  
+**Document Version:** 1.2  
 **Project:** IT Support Diagnostic & Case Management System  
 **Document Type:** Technical Design  
-**Status:** Approved for Schema Validation
+**Status:** Ready for Phase 2.1 JSON Schema Finalization
 
 ---
 
@@ -11,11 +11,11 @@
 
 This document defines the structure, data standards, diagnostic workflow model, and validation requirements for the project's Diagnostic Knowledge Base.
 
-The Knowledge Base will provide structured diagnostic information for three initial technical categories:
+The Knowledge Base will provide structured diagnostic information for three initial technical categories, with first-class cross-OS support (**Windows**, **Linux**, and **macOS**):
 
-- PC Hardware
-- Windows Operating System
-- Networking
+- PC Hardware (`hardware`)
+- Operating Systems (`os` — Windows, Linux, macOS)
+- Networking (`network` — cross-OS)
 
 The system will use deterministic Python logic to interpret diagnostic results and determine the next appropriate action.
 
@@ -38,12 +38,12 @@ The Knowledge Base must follow these principles:
 
 The Knowledge Base will use JSON files to store diagnostic workflows.
 
-Proposed directory structure:
+Proposed directory structure (aligned with `docs/architecture.md`):
 
 ```text
-knowledge_base/
+app/data/
 ├── hardware_rules.json
-├── windows_rules.json
+├── os_rules.json
 └── network_rules.json
 ```
 
@@ -61,10 +61,12 @@ Each workflow must contain the following information:
 |---|---|
 | workflow_id | Unique workflow identifier |
 | workflow_name | Name of the diagnostic workflow |
-| category | Technical category |
+| category | Technical category (`hardware`, `os`, `network`) |
+| supported_os | List of supported OS targets (e.g., `["windows", "linux", "macos"]` or `["all"]`) |
 | description | Description of the issue being investigated |
 | version | Workflow version |
 | initial_step_id | Identifier of the first diagnostic step |
+| safety_red_flags | Workflow-level safety conditions that trigger immediate `safety_stop` |
 | steps | Collection of diagnostic steps |
 | references | Related technical references |
 
@@ -73,8 +75,8 @@ Each workflow must contain the following information:
 The initial supported categories are:
 
 - `hardware`
-- `windows`
-- `network`
+- `os` (Windows, Linux, macOS)
+- `network` (Cross-OS: Windows, Linux, macOS)
 
 ### 4.2 Workflow Identification
 
@@ -82,9 +84,9 @@ Every workflow must have a unique `workflow_id`.
 
 Example:
 
-- `HW-001`: PC does not power on.
-- `WIN-001`: Windows startup failure.
-- `NET-001`: No internet connectivity.
+- `HW-001`: PC does not power on / No display.
+- `OS-001`: Slow system performance / High resource usage (Windows, Linux, macOS).
+- `NET-001`: No internet connectivity (Windows, Linux, macOS).
 
 Workflow identifiers must remain unique across the entire Knowledge Base.
 
@@ -99,11 +101,17 @@ Every diagnostic step must contain the following information:
 | step_id | Unique step identifier within the workflow |
 | title | Diagnostic step title |
 | objective | Purpose of the diagnostic step |
-| instructions | Step-by-step procedure |
+| instructions | Default step-by-step procedure (used when OS-agnostic) |
+| os_variants | Optional per-OS overrides (`windows`, `linux`, `macos`) containing OS-specific instructions, commands, GUI paths, and expected output |
 | test_type | Type of diagnostic test |
-| expected_results | Expected observations or results |
-| safety_requirements | Safety precautions |
-| result_transitions | Rules determining the next action |
+| command_risk_level | Risk classification (`read_only`, `system_change`, `destructive`, `not_applicable`) |
+| parser_key | Optional identifier linking to `output_parser.py` for automated terminal output parsing (e.g., `ping`, `ip_config`) |
+| expected_results | Expected normal observations or results |
+| safety_requirements | Step-level safety precautions and prerequisites |
+| safety_red_flags | Optional step-specific safety triggers that force immediate `safety_stop` |
+| learning_content | Educational details (`why_this_step`, `technical_principle`, `limitations`) for the Learning Drawer |
+| outcomes | Explicit user-selectable or parser-matched diagnostic outcomes, each mapping to a standard `result_code`, optional ruled-out/finding notes, and transition action |
+| result_transitions | Fallback transition rules keyed by standard `result_code` (`inconclusive`, `not_performed`, `unable_to_perform`, etc.) |
 | reference_ids | Related technical references |
 | max_visits | Maximum permitted executions of this step |
 
@@ -206,16 +214,21 @@ Supported transition actions:
 | `complete` | Complete the diagnostic workflow |
 | `escalate` | Refer the incident to a qualified technician |
 
-### 7.1 Transition Rules
+### 7.1 Multi-Outcome and Fallback Transition Rules
 
-Each diagnostic step must define the appropriate transition for its supported result codes.
+Real-world diagnostic steps often have more than one distinct abnormal observation (for example, pressing the power button may result in "no response at all", "fans spin with no display", or "motherboard beep error codes").
 
-Example:
+To handle this cleanly without losing standardization:
+
+1. Each step defines explicit `outcomes` (each with a unique `outcome_id`, human-readable `label`, mapped standard `result_code`, optional `rules_out` / `finding_hint`, and transition `action` + `next_step_id`).
+2. Each step also defines `result_transitions` for standard fallback result codes (`inconclusive`, `not_performed`, `unable_to_perform`).
+
+Example fallback transitions:
 
 | Result | Action |
 |---|---|
 | `normal` | `next_step` |
-| `abnormal` | `next_step` |
+| `abnormal` | `next_step` (or specific outcome branch) |
 | `inconclusive` | `request_more_information` |
 | `not_performed` | `pause` |
 | `unable_to_perform` | `escalate` |
@@ -441,42 +454,23 @@ Reference records should contain:
 
 References should support the technical explanation and verification of diagnostic procedures.
 
-## 14. Initial Workflow Coverage
+## 14. Initial Workflow Coverage (Focused MVP Strategy)
 
-The initial Knowledge Base should include representative workflows from all three technical categories.
+To prioritize diagnostic depth, cross-OS quality, and full end-to-end verification over shallow breadth, the MVP will implement **3 flagship workflows** (one per category), each with thorough branching, safety controls, evidence tracking, and cross-OS learning content:
 
-### 14.1 PC Hardware
+### 14.1 MVP Flagship Workflows
 
-Initial workflow examples:
+1. **Networking (`NET-001`)**: No Internet Connectivity (Cross-OS: Windows, Linux, macOS — with lightweight parser support for `ipconfig`/`ifconfig`/`ip a` and `ping`).
+2. **PC Hardware (`HW-001`)**: PC Does Not Power On / No Display (with strict power/ESD safety gates and multi-outcome branching).
+3. **Operating Systems (`OS-001`)**: Slow System Performance & High Resource Usage (Cross-OS: Windows Task Manager/Resource Monitor, Linux `top`/`htop`/`free`/`df`/`journalctl`, macOS Activity Monitor/`top`/`vm_stat`).
 
-- PC does not power on
-- PC powers on but no display
-- PC fails POST
-- RAM detection issue
-- Storage device not detected
-- Overheating symptoms
+### 14.2 Future Expansion Workflows (Post-MVP)
 
-### 14.2 Windows
+Once the engine, UI, and reports are verified on the 3 flagship workflows, additional workflows can be added purely via JSON data:
 
-Initial workflow examples:
-
-- Windows startup failure
-- Blue Screen of Death (BSOD)
-- Unexpected shutdown
-- High CPU or memory usage
-- Windows Update failure
-- Driver-related problems
-
-### 14.3 Networking
-
-Initial workflow examples:
-
-- No internet connectivity
-- Wi-Fi connection failure
-- Ethernet connection failure
-- Incorrect IP configuration
-- DNS resolution failure
-- Packet loss or high latency
+- **Hardware**: RAM detection issue, Storage device not detected, Overheating symptoms.
+- **Operating Systems**: Boot/startup failure, System crash (BSOD / Kernel Panic), OS update & driver failures.
+- **Networking**: Wi-Fi specific failure, DNS resolution deep-dive, Packet loss & high latency.
 
 ## 15. Schema Validation and Acceptance Criteria
 
@@ -516,13 +510,12 @@ The next development phase is:
 
 Planned activities:
 
-1. Review the Version 1.1 Knowledge Base design.
-2. Identify any remaining schema gaps.
-3. Define the actual JSON structure.
-4. Create representative workflow examples.
-5. Validate workflows from Hardware, Windows, and Networking.
-6. Confirm that the schema supports all required diagnostic behaviors.
-7. Prepare the schema for Python implementation.
+1. Review the Version 1.2 Knowledge Base design.
+2. Define the concrete JSON Schema (`app/data/workflow_schema.json` or Python validator rules).
+3. Create the 3 flagship MVP workflows (`NET-001`, `HW-001`, `OS-001`).
+4. Validate cross-OS variants (Windows, Linux, macOS), multi-outcome branching, command risk levels, learning content, and safety triggers.
+5. Confirm that the schema supports all required diagnostic behaviors.
+6. Prepare the schema for Python implementation (`knowledge_base.py`).
 
 The project must not proceed to full Diagnostic Engine implementation until the Knowledge Base schema has been sufficiently validated.
 

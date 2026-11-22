@@ -1,9 +1,9 @@
 # IT Support Diagnostic & Case Management System
 
 **Document Type:** Development Progress  
-**Version:** 1.0  
-**Last Updated:** 2026-11-04  
-**Project Status:** Planning and Technical Design
+**Version:** 1.1  
+**Last Updated:** 2026-11-22  
+**Project Status:** Planning and Technical Design (Aligned for Cross-OS MVP)
 
 ---
 
@@ -25,9 +25,9 @@ Core application development has not yet started.
 | System Architecture | Completed |
 | Knowledge Base Design | Completed |
 | Development Progress Documentation | In Progress |
-| JSON Knowledge Base Implementation | Pending |
-| Diagnostic Engine Implementation | Pending |
-| Automated Testing | Pending |
+| JSON Knowledge Base Implementation | Completed |
+| Diagnostic Engine Implementation | Completed |
+| Automated Testing | In Progress (34 tests passing: KB + Parser + Engine) |
 | Flask Application | Pending |
 | SQLite Integration | Pending |
 | Incident Management | Pending |
@@ -61,13 +61,23 @@ Completed:
 
 Product direction:
 
-Hybrid — Professional IT Diagnostic Platform + IT Support Learning Platform.
+Hybrid — Professional IT Diagnostic Platform + Cross-OS IT Support Learning Platform.
 
-Initial technical scope:
+Initial technical scope (Cross-OS):
 
-- PC Hardware
-- Windows
-- Networking
+- PC Hardware (`hardware`)
+- Operating Systems (`os` — Windows, Linux, macOS)
+- Networking (`network` — Windows, Linux, macOS)
+
+MVP workflow strategy:
+
+- Start with **3 flagship high-depth workflows** (`NET-001`, `HW-001`, `OS-001`) instead of 18 shallow workflows, prioritizing end-to-end depth, cross-OS accuracy, and test coverage.
+
+Key MVP differentiators (vs. generic AI chatbots):
+
+- **Lightweight Command Output Parser** (`output_parser.py`) for key diagnostic commands (`ping`, `ipconfig`/`ifconfig`/`ip a`) to deterministically extract evidence and suggest normalized results.
+- **Handoff-Ready Escalation Reports** (Markdown / printable HTML with ruled-out causes and evidence chain for L1-to-L2 handoff).
+- **Side-by-Side Cross-OS Learning Panel** (technical principles, command risk badges, and Windows/Linux/macOS equivalent tabs).
 
 MVP technology stack:
 
@@ -112,27 +122,26 @@ The knowledge base is the foundation for workflow execution and conditional deci
 
 Pending tasks:
 
-- Define and validate the final JSON schema.
-- Create initial Hardware diagnostic workflows.
-- Create initial Windows diagnostic workflows.
-- Create initial Networking diagnostic workflows.
-- Implement knowledge_base.py.
-- Implement JSON loading.
-- Implement schema and workflow validation.
+- Define and validate the final JSON schema (including `os_variants`, `outcomes`, `command_risk_level`, `learning_content`, `parser_key`, and `safety_red_flags`).
+- Create the 3 flagship MVP workflows:
+  - `NET-001` (No Internet Connectivity — Windows/Linux/macOS)
+  - `HW-001` (PC Does Not Power On / No Display)
+  - `OS-001` (Slow System Performance / High Resource Usage — Windows/Linux/macOS)
+- Implement `knowledge_base.py` loading and structural validation.
 - Create automated knowledge base tests.
 
-### Phase 3 — Diagnostic Engine Foundation
+### Phase 3 — Diagnostic Engine & Output Parser Foundation
 
 Pending tasks:
 
-- Implement workflow initialization.
+- Implement workflow initialization and target OS resolution.
 - Implement diagnostic session state.
 - Implement diagnostic step retrieval.
-- Implement test-result validation.
-- Implement conditional branching.
-- Implement diagnostic termination.
-- Implement safety escalation.
-- Create diagnostic engine unit tests.
+- Implement multi-outcome and fallback test-result validation.
+- Implement conditional branching and cycle control (`max_visits`).
+- Implement diagnostic termination and safety escalation (`safety_stop`).
+- Implement lightweight deterministic `output_parser.py` for key commands (`ping`, `ipconfig`/`ifconfig`/`ip a`).
+- Create diagnostic engine and output parser unit tests.
 
 ### Phase 4 — Incident and Evidence Management
 
@@ -158,13 +167,12 @@ Pending tasks:
 - Display diagnostic results.
 - Integrate application services.
 
-### Phase 6 — Reports and Learning Mode
+### Phase 6 — Reports and Cross-OS Learning Mode
 
 Pending tasks:
 
-- Implement incident report generation.
-- Present technical explanations.
-- Build learning-oriented diagnostic content.
+- Implement handoff-ready incident & escalation report generation (Markdown / printable HTML, ruled-out causes, evidence chain).
+- Build expandable Cross-OS Learning Panel (technical explanations, test limitations, command risk badges, and Windows/Linux/macOS comparison tabs).
 - Review report accuracy and traceability.
 
 ### Phase 7 — Quality Assurance and Deployment
@@ -187,7 +195,7 @@ The next development task is:
 
 **Phase 2.1 — Finalize and validate the JSON Knowledge Base Schema.**
 
-Before writing the full set of diagnostic workflows, review the proposed schema against representative Hardware, Windows, and Networking scenarios.
+Before writing the Python engine, finalize and validate the concrete JSON schema against the 3 flagship MVP workflows (`NET-001`, `HW-001`, `OS-001`).
 
 The validation should confirm:
 
@@ -234,8 +242,8 @@ Never report planned functionality as implemented functionality.
 |---|---|---|
 | M0 | Project initialization | Completed |
 | M1 | Product and technical design | Completed |
-| M2 | Knowledge base foundation | Pending |
-| M3 | Diagnostic engine | Pending |
+| M2 | Knowledge base foundation | Completed |
+| M3 | Diagnostic engine | Completed |
 | M4 | Incident and evidence management | Pending |
 | M5 | Flask application | Pending |
 | M6 | Reports and learning mode | Pending |

@@ -1,0 +1,571 @@
+{
+  "schema_version": "1.0",
+  "category": "os",
+  "workflows": [
+    {
+      "workflow_id": "OS-001",
+      "workflow_name": "Slow System Performance & High Resource Usage (Cross-OS)",
+      "category": "os",
+      "supported_os": ["windows", "linux", "macos"],
+      "description": "Cross-OS diagnostic workflow for identifying CPU, RAM, Disk I/O, storage capacity, or OS-level log bottlenecks on Windows, Linux, and macOS.",
+      "version": "1.0",
+      "initial_step_id": "OS-001-S1",
+      "safety_red_flags": [
+        {
+          "flag_id": "OS-RF-01",
+          "label": "Extreme overheating (burning hot chassis), grinding/clicking hard drive sounds, or burning smell",
+          "warning_message": "SAFETY STOP: Severe thermal or mechanical storage failure suspected. Continuing heavy workloads may cause permanent hardware damage or data loss.",
+          "escalation_instruction": "Back up critical open files if safe, shut down the system immediately, and escalate to hardware support."
+        }
+      ],
+      "steps": [
+        {
+          "step_id": "OS-001-S1",
+          "title": "Measure Overall CPU, Memory, and Disk Utilization",
+          "objective": "Identify which primary system resource (CPU, RAM, or Disk) is saturated so troubleshooting targets the actual bottleneck.",
+          "instructions": [
+            "Open the system resource monitor for your operating system.",
+            "Observe overall CPU %, Memory usage / pressure, and Disk activity % for 15-30 seconds.",
+            "Record which resource is consistently pegged high (e.g., > 85-90%)."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Press `Ctrl + Shift + Esc` to open Task Manager.",
+                "Click the 'Performance' tab (or run `perfmon /res` for Resource Monitor).",
+                "Check sustained CPU %, Memory %, and Disk Active Time %."
+              ],
+              "command": "perfmon /res",
+              "gui_path": "Task Manager (Ctrl+Shift+Esc) > Performance",
+              "expected_output_hint": "Normal idle/light use: CPU < 30%, Memory < 75%, Disk < 20%"
+            },
+            "linux": {
+              "instructions": [
+                "Open Terminal and run `top` (press `q` to quit) or `htop` if installed.",
+                "Check `%Cpu(s)` (specifically `us`, `sy`, and `wa` for I/O wait), `MiB Mem`, and `load average`."
+              ],
+              "command": "top -b -n 1 | head -n 20",
+              "gui_path": "System Monitor > Resources",
+              "expected_output_hint": "Low CPU idle (`id` < 15%) = CPU bottleneck; high `wa` = Disk I/O bottleneck"
+            },
+            "macos": {
+              "instructions": [
+                "Open Spotlight (`Cmd + Space`) and launch 'Activity Monitor'.",
+                "Check the CPU tab (% Idle), Memory tab (Memory Pressure graph: Green/Yellow/Red), and Disk tab.",
+                "Or run the read-only terminal snapshot below."
+              ],
+              "command": "top -l 1 -n 10",
+              "gui_path": "Applications > Utilities > Activity Monitor",
+              "expected_output_hint": "Memory Pressure should be Green; CPU Idle > 50% at light load"
+            }
+          },
+          "test_type": "performance_check",
+          "command_risk_level": "read_only",
+          "parser_key": null,
+          "expected_results": "CPU, Memory, and Disk utilization remain within normal operating thresholds without sustained saturation.",
+          "safety_requirements": [
+            "Read-only monitoring step. Do not force-terminate unfamiliar system processes yet."
+          ],
+          "learning_content": {
+            "why_this_step": "Slowness is a symptom, not a root cause. Measuring CPU, RAM, and Disk first prevents blind fixes like rebooting or reinstalling software without knowing what is actually bottlenecked.",
+            "technical_principle": "Operating systems schedule CPU time, physical RAM (plus pagefile/swap), and storage I/O queues. Saturation in any one subsystem creates lag across all applications, including mouse/UI responsiveness.",
+            "limitations": "A single instant snapshot can miss intermittent spikes; observe for at least 15-30 seconds while the slowness occurs."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "cpu_saturated",
+              "label": "CPU usage is consistently very high (> 85%) or Linux load average is well above core count",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "Sustained high CPU utilization observed.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "OS-001-S2A",
+                "summary": "CPU saturation detected. Proceed to identify the top CPU-consuming process."
+              }
+            },
+            {
+              "outcome_id": "memory_saturated",
+              "label": "Memory usage is > 90%, heavy swap/paging occurs, or macOS Memory Pressure is Yellow/Red",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "High memory pressure / RAM exhaustion observed.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "OS-001-S2B",
+                "summary": "Memory bottleneck detected. Proceed to inspect RAM and swap consumers."
+              }
+            },
+            {
+              "outcome_id": "disk_saturated",
+              "label": "Disk active time is stuck near 100%, Linux I/O wait (`wa`) is high, or system warns of low disk space",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "Storage I/O saturation or capacity bottleneck observed.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "OS-001-S2C",
+                "summary": "Storage bottleneck detected. Proceed to inspect free disk space and I/O."
+              }
+            },
+            {
+              "outcome_id": "resources_appear_normal",
+              "label": "CPU, Memory, and Disk utilization all look normal, yet the system still feels sluggish or freezes",
+              "result_code": "normal",
+              "rules_out": [
+                "Simple CPU saturation",
+                "RAM exhaustion",
+                "Sustained 100% Disk I/O"
+              ],
+              "finding_hint": "System feels slow despite normal resource gauges; suspect thermal throttling, driver stalls, or OS errors.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "OS-001-S3",
+                "summary": "Proceed to inspect OS system logs for hardware, thermal, or driver errors."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Record approximate CPU %, Memory %, and Disk % while the slowdown is happening."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending resource utilization check."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "System is too unresponsive to open monitoring tools; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-OS-MS-PERF", "REF-OS-APPLE-AM"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "OS-001-S2A",
+          "title": "Identify Top CPU-Consuming Processes",
+          "objective": "Determine whether high CPU usage is caused by a user application (e.g., browser tab, video call) or an OS/background system process.",
+          "instructions": [
+            "Sort running processes by CPU usage descending.",
+            "Record the top 1-3 process names and their CPU percentages.",
+            "Determine if the top consumer is a normal user application or a core OS/background service."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "In Task Manager > Processes tab, click the 'CPU' column header to sort highest first.",
+                "Or run the PowerShell read-only command below to list the top 10 processes by CPU time."
+              ],
+              "command": "powershell -Command \"Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name,Id,CPU\"",
+              "gui_path": "Task Manager > Processes (sort by CPU)",
+              "expected_output_hint": "Identifies the exact process name (e.g., chrome, Teams, TiWorker, Antimalware Service)"
+            },
+            "linux": {
+              "instructions": [
+                "Open Terminal and run `ps aux --sort=-%cpu | head -n 11`.",
+                "Note the USER, PID, %CPU, and COMMAND columns of the top entries."
+              ],
+              "command": "ps aux --sort=-%cpu | head -n 11",
+              "gui_path": "System Monitor > Processes (sort by % CPU)",
+              "expected_output_hint": "Top process and PID consuming CPU are clearly listed"
+            },
+            "macos": {
+              "instructions": [
+                "In Activity Monitor > CPU tab, click '% CPU' to sort descending.",
+                "Or run `ps aux -r | head -n 11` in Terminal."
+              ],
+              "command": "ps aux -r | head -n 11",
+              "gui_path": "Activity Monitor > CPU tab (sort by % CPU)",
+              "expected_output_hint": "Identifies whether a user app or system daemon (e.g., kernel_task, mds_stores) is spiking"
+            }
+          },
+          "test_type": "system_information",
+          "command_risk_level": "read_only",
+          "parser_key": null,
+          "expected_results": "The specific process or service responsible for high CPU utilization is clearly identified.",
+          "safety_requirements": [
+            "Read-only inspection. Never kill core OS processes (e.g., `System`, `csrss.exe`, `systemd`, `kernel_task`) as doing so can crash the OS."
+          ],
+          "learning_content": {
+            "why_this_step": "Distinguishing a runaway user app from a system daemon changes the fix completely: a hung browser tab can be safely closed, whereas high `kernel_task` (macOS) or `System Interrupts` (Windows) often indicates thermal throttling or faulty hardware/drivers.",
+            "technical_principle": "User-space processes run in unprivileged rings and can be restarted safely; kernel/system services manage hardware interrupts, indexing, updates, and thermal protection.",
+            "limitations": "High CPU from background updates (Windows Update `TiWorker`, Linux `apt`/`unattended-upgrades`, macOS Spotlight `mds_stores`) may be normal temporary maintenance rather than a fault."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "runaway_user_app",
+              "label": "A specific user application (e.g., browser, IDE, meeting app) is consuming most CPU",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Core OS kernel/driver CPU loop"
+              ],
+              "finding_hint": "Evidence-supported high CPU caused by a user-space application. Advise saving work, restarting or updating the application, and checking browser extensions.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "CPU bottleneck isolated to a specific user application."
+              }
+            },
+            {
+              "outcome_id": "system_daemon_high_cpu",
+              "label": "An OS/system process (e.g., System Interrupts, kernel_task, kworker, Antimalware) is dominating CPU",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Single user-app runaway process"
+              ],
+              "finding_hint": "High CPU is driven by an OS kernel/system process; inspect system logs for driver, thermal, or update faults.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "OS-001-S3",
+                "summary": "Proceed to inspect system logs for driver, thermal, or OS service errors."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Record the exact top 3 process names and their CPU %."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending process inspection."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to inspect running processes; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-OS-MS-PERF", "REF-OS-LINUX-MAN"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "OS-001-S2B",
+          "title": "Inspect Memory Pressure, Swap Usage, and Top RAM Consumers",
+          "objective": "Determine whether RAM exhaustion is caused by normal heavy multi-tasking or an abnormal memory leak.",
+          "instructions": [
+            "Check total physical RAM, available RAM, and swap/pagefile usage.",
+            "Sort processes by Memory usage descending and record the top 3 consumers."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Open Task Manager > Processes tab and sort by 'Memory'.",
+                "Check Performance > Memory for 'In use', 'Available', and 'Committed' values."
+              ],
+              "command": "powershell -Command \"Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10 Name,Id,@{Name='MB';Expression={[math]::Round($_.WorkingSet64/1MB,1)}}\"",
+              "gui_path": "Task Manager > Processes (sort by Memory) & Performance > Memory",
+              "expected_output_hint": "Lists top RAM-consuming processes in MB"
+            },
+            "linux": {
+              "instructions": [
+                "Run `free -h` to inspect `available` RAM and `Swap` usage (note: `buff/cache` is normal reclaimable cache, not wasted RAM).",
+                "Run `ps aux --sort=-%mem | head -n 11` to list top memory consumers."
+              ],
+              "command": "free -h && ps aux --sort=-%mem | head -n 11",
+              "gui_path": "System Monitor > Processes (sort by Memory)",
+              "expected_output_hint": "Look at 'available' column in `free -h`, not 'free', and check if Swap used is high"
+            },
+            "macos": {
+              "instructions": [
+                "Open Activity Monitor > Memory tab, sort by 'Memory', and check 'Memory Pressure' and 'Swap Used' at the bottom.",
+                "Or run `memory_pressure` in Terminal."
+              ],
+              "command": "memory_pressure",
+              "gui_path": "Activity Monitor > Memory tab",
+              "expected_output_hint": "Shows system-wide free memory percentage and pressure level"
+            }
+          },
+          "test_type": "system_information",
+          "command_risk_level": "read_only",
+          "parser_key": null,
+          "expected_results": "Identifies whether heavy user applications or an abnormal OS/kernel memory leak is causing swap thrashing.",
+          "safety_requirements": [
+            "Read-only inspection. Remind users to save unsaved documents before closing memory-heavy applications."
+          ],
+          "learning_content": {
+            "why_this_step": "When physical RAM fills up, the OS moves memory pages to slower disk swap/pagefile ('thrashing'), making the entire computer feel frozen even when CPU usage is low.",
+            "technical_principle": "Modern OSes intentionally use free RAM for disk caching (Linux `buff/cache`, macOS Cached Files, Windows Standby). True memory exhaustion is indicated by low *Available* RAM, high *Swap/Pagefile* activity, or Yellow/Red Memory Pressure.",
+            "limitations": "Closing apps relieves immediate pressure, but if the user's daily workload consistently exceeds installed RAM (e.g., 8 GB RAM running VMs + 50 browser tabs), a hardware RAM upgrade may be needed."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "ram_exhausted_by_user_apps",
+              "label": "Multiple heavy user apps (e.g., browsers, Docker, VMs, creative tools) account for almost all RAM usage",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Unexplained kernel memory leak"
+              ],
+              "finding_hint": "Evidence-supported RAM exhaustion and swap thrashing due to active user workload exceeding available physical memory.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Advise closing unused heavy applications/tabs, disabling unnecessary startup apps, or evaluating a RAM upgrade."
+              }
+            },
+            {
+              "outcome_id": "abnormal_system_memory_usage",
+              "label": "High RAM/swap usage with no obvious user app responsible (possible driver/kernel memory leak)",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Standard heavy user multitasking"
+              ],
+              "finding_hint": "Suspected OS, service, or driver memory leak; inspect system logs next.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "OS-001-S3",
+                "summary": "Proceed to inspect system logs for OOM killer events, driver errors, or memory warnings."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Record total RAM, available RAM/memory pressure, swap usage, and top 3 memory processes."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending memory inspection."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to inspect memory statistics; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-OS-LINUX-MAN", "REF-OS-APPLE-AM"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "OS-001-S2C",
+          "title": "Check Free Disk Space and Storage I/O Activity",
+          "objective": "Verify whether the system drive is critically full (< 10% free) or experiencing abnormal disk I/O saturation.",
+          "instructions": [
+            "Check available free space on the primary OS drive/partition.",
+            "Check whether disk read/write activity is pegged at 100%."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Check free space on `C:` in File Explorer or Settings > System > Storage.",
+                "Or run the PowerShell command below to check drive capacity and free space."
+              ],
+              "command": "powershell -Command \"Get-PSDrive -PSProvider FileSystem | Select-Object Name,@{Name='UsedGB';Expression={[math]::Round($_.Used/1GB,1)}},@{Name='FreeGB';Expression={[math]::Round($_.Free/1GB,1)}}\"",
+              "gui_path": "Settings > System > Storage (and Task Manager > Performance > Disk)",
+              "expected_output_hint": "System drive (C:) should have at least 10-15% free space"
+            },
+            "linux": {
+              "instructions": [
+                "Run `df -h` in Terminal and inspect the `Use%` column for `/` and `/home`.",
+                "Optionally check `df -i` if inode exhaustion is suspected."
+              ],
+              "command": "df -h",
+              "gui_path": "Disk Usage Analyzer (Baobab) / Settings > Storage",
+              "expected_output_hint": "Root `/` partition `Use%` should be below 85-90%"
+            },
+            "macos": {
+              "instructions": [
+                "Open System Settings > General > Storage to view available space.",
+                "Or run `df -h /` in Terminal."
+              ],
+              "command": "df -h /",
+              "gui_path": "System Settings > General > Storage",
+              "expected_output_hint": "Primary volume should have at least 15-20 GB (or > 10%) free"
+            }
+          },
+          "test_type": "system_information",
+          "command_risk_level": "read_only",
+          "parser_key": null,
+          "expected_results": "Primary OS drive has > 10-15% free space and normal disk I/O latency.",
+          "safety_requirements": [
+            "Read-only check. Always recommend backing up important user data before deleting files or running disk repair tools."
+          ],
+          "learning_content": {
+            "why_this_step": "Nearly full SSDs and OS partitions severely degrade write performance, prevent swap/pagefile expansion, and can stop OS updates or login sessions from functioning.",
+            "technical_principle": "SSDs require free blocks for wear-leveling and garbage collection; operating systems also need free space for virtual memory swap files, logs, and temporary caches.",
+            "limitations": "Adequate free space does not rule out a failing HDD/SSD with bad sectors or a buggy storage driver; check system logs if disk I/O remains stuck at 100%."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "disk_critically_full",
+              "label": "System drive is critically full (< 10% free or < 5 GB remaining)",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Unexplained CPU/RAM fault"
+              ],
+              "finding_hint": "Evidence-supported critical low disk space on the OS volume causing severe performance degradation.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Back up critical files first, then safely free disk space (clear trash/temp files, uninstall unused apps, or archive large media) to restore > 15% free capacity."
+              }
+            },
+            {
+              "outcome_id": "disk_space_ok_io_high",
+              "label": "Plenty of free disk space (> 15% free), but disk I/O remains stuck very high",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Low disk capacity exhaustion"
+              ],
+              "finding_hint": "High storage I/O despite adequate free space; suspect failing drive, background indexing/scan, or storage driver issue.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "OS-001-S3",
+                "summary": "Proceed to inspect OS system logs for disk/I/O errors or SMART warnings."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Record the exact total size and free space percentage of the primary OS drive."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending disk space and I/O check."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to inspect storage metrics; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-OS-MS-PERF", "REF-OS-LINUX-MAN"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "OS-001-S3",
+          "title": "Inspect OS System Logs for Hardware, Storage, Thermal, or Driver Errors",
+          "objective": "Collect concrete OS log evidence of recurring errors (e.g., disk bad blocks, OOM killer, thermal throttling, or crashing services).",
+          "instructions": [
+            "Open the OS system log viewer or run the read-only log query command.",
+            "Look for repeated Error or Critical entries within the last 30 minutes to 24 hours (especially disk, kernel, thermal, or driver faults)."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Open Event Viewer (`eventvwr.msc`) > Windows Logs > System and filter for Critical and Error events.",
+                "Or run the PowerShell read-only command below to inspect the latest 20 System errors."
+              ],
+              "command": "powershell -Command \"Get-WinEvent -FilterHashtable @{LogName='System'; Level=1,2} -MaxEvents 20 | Format-Table TimeCreated,ProviderName,Id,Message -Wrap\"",
+              "gui_path": "Event Viewer (eventvwr.msc) > Windows Logs > System",
+              "expected_output_hint": "Look for recurring Disk (Event ID 7/51/129), Kernel-Power, or Driver errors"
+            },
+            "linux": {
+              "instructions": [
+                "Open Terminal and run `journalctl -p err -n 30 --no-pager` to review recent system error logs.",
+                "Optionally run `dmesg -T --level=err,warn | tail -n 20` for kernel/hardware messages."
+              ],
+              "command": "journalctl -p err -n 30 --no-pager",
+              "gui_path": "Logs (GNOME Logs) > Important / System",
+              "expected_output_hint": "Look for I/O errors (`blk_update_request`), `Out of memory` (OOM), or thermal throttle messages"
+            },
+            "macos": {
+              "instructions": [
+                "Open Applications > Utilities > Console to inspect crash reports and system errors.",
+                "Or run the read-only `log show` command below to list recent error-level log entries."
+              ],
+              "command": "log show --predicate 'messageType == 16' --last 15m | tail -n 30",
+              "gui_path": "Applications > Utilities > Console > Crash Reports / system.log",
+              "expected_output_hint": "Look for recurring disk I/O errors, kernel extensions, or thermal/watchdog warnings"
+            }
+          },
+          "test_type": "system_information",
+          "command_risk_level": "read_only",
+          "parser_key": null,
+          "expected_results": "No recurring critical hardware, disk, kernel, or driver errors appear in recent system logs.",
+          "safety_requirements": [
+            "Read-only log inspection. Do not run destructive OS reset or disk repair commands before backing up user data."
+          ],
+          "learning_content": {
+            "why_this_step": "System logs provide timestamped, authoritative evidence that visual observation cannot reveal—such as silent disk read retries, Linux OOM kills, or Windows driver resets—making L1-to-L2 escalation dramatically faster.",
+            "technical_principle": "All major operating systems maintain centralized event logging daemons (Windows Event Log, Linux systemd-journald, macOS Unified Logging) that capture kernel, driver, and service faults.",
+            "limitations": "Logs can contain benign background warnings; correlate error timestamps directly with when the user experienced slowness."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "critical_log_errors_found",
+              "label": "Recurring Critical/Error entries found (e.g., Disk I/O error, OOM kill, Thermal throttle, or Driver crash)",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Purely cosmetic UI lag"
+              ],
+              "finding_hint": "Evidence-supported OS/hardware fault recorded in system logs. Attach exact log excerpts/Event IDs to the escalation report.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Support with captured system log excerpts (and recommend immediate data backup if disk errors are present)."
+              }
+            },
+            {
+              "outcome_id": "no_critical_log_errors",
+              "label": "No recurring critical errors in system logs despite persistent slowness",
+              "result_code": "normal",
+              "rules_out": [
+                "Obvious logged kernel/disk/driver crash"
+              ],
+              "finding_hint": "No critical OS log faults detected; deeper L2 diagnostics needed (e.g., malware scan, SMART drive health, BIOS/thermal check, or profile corruption).",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Support with resource metrics and clean log verification for deeper profiling."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Copy the most recent 5-10 error lines or Event IDs from the log viewer."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending system log inspection."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Insufficient privileges or unable to read system logs; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-OS-MS-PERF", "REF-OS-LINUX-MAN", "REF-OS-APPLE-AM"],
+          "max_visits": 2
+        }
+      ],
+      "references": [
+        {
+          "reference_id": "REF-OS-MS-PERF",
+          "title": "Windows Performance Monitoring and Event Viewer Documentation",
+          "publisher": "Microsoft Learn",
+          "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/get-winevent",
+          "description": "Official Microsoft documentation for inspecting Windows performance counters and System Event Logs."
+        },
+        {
+          "reference_id": "REF-OS-LINUX-MAN",
+          "title": "Linux System Administration Utilities (top, ps, free, df, journalctl)",
+          "publisher": "Linux man-pages / freedesktop.org",
+          "url": "https://www.freedesktop.org/software/systemd/man/journalctl.html",
+          "description": "Reference for cross-distribution Linux performance inspection and systemd journal log analysis."
+        },
+        {
+          "reference_id": "REF-OS-APPLE-AM",
+          "title": "Activity Monitor User Guide for macOS",
+          "publisher": "Apple Support",
+          "url": "https://support.apple.com/guide/activity-monitor/welcome/mac",
+          "description": "Official Apple documentation on interpreting CPU, Memory Pressure, Disk, and Console diagnostics on macOS."
+        }
+      ]
+    }
+  ]
+}

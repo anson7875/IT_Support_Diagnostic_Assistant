@@ -1,0 +1,675 @@
+{
+  "schema_version": "1.0",
+  "category": "network",
+  "workflows": [
+    {
+      "workflow_id": "NET-001",
+      "workflow_name": "No Internet Connectivity (Cross-OS)",
+      "category": "network",
+      "supported_os": ["windows", "linux", "macos"],
+      "description": "Structured OSI Layer 1-7 troubleshooting workflow for devices that cannot access the internet on Windows, Linux, or macOS.",
+      "version": "1.0",
+      "initial_step_id": "NET-001-S1",
+      "safety_red_flags": [
+        {
+          "flag_id": "NET-RF-01",
+          "label": "Visible electrical damage, smoke, or burning smell from router, modem, or network port",
+          "warning_message": "Electrical hazard detected. Do not touch damaged cables or power adapters.",
+          "escalation_instruction": "Disconnect power safely from the wall outlet if possible and escalate to facilities or certified hardware support immediately."
+        }
+      ],
+      "steps": [
+        {
+          "step_id": "NET-001-S1",
+          "title": "Verify Physical Link and Wi-Fi Association",
+          "objective": "Confirm that the device has an active physical Ethernet connection or is associated with the intended Wi-Fi network (SSID).",
+          "instructions": [
+            "Check whether the device is connected via Ethernet cable or Wi-Fi.",
+            "Confirm Airplane Mode is turned off and the Wi-Fi / Ethernet adapter is enabled.",
+            "For Ethernet, verify the cable is firmly seated at both ends and check for link LEDs."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Click the Network icon on the bottom-right taskbar.",
+                "Confirm Airplane Mode is Off and Wi-Fi is connected to the correct SSID (or Ethernet shows Connected).",
+                "Optionally verify adapter state via Settings > Network & internet."
+              ],
+              "command": "netsh interface show interface",
+              "gui_path": "Settings > Network & internet > Advanced network settings",
+              "expected_output_hint": "Admin State: Enabled, State: Connected"
+            },
+            "linux": {
+              "instructions": [
+                "Check the top-bar network indicator or run nmcli in the terminal.",
+                "Verify the Wi-Fi or Ethernet interface state is 'connected' and not 'unavailable' or 'disconnected'."
+              ],
+              "command": "nmcli device status",
+              "gui_path": "Settings > Network / Wi-Fi",
+              "expected_output_hint": "STATE column shows 'connected' for your active interface"
+            },
+            "macos": {
+              "instructions": [
+                "Click the Wi-Fi icon in the top-right menu bar or open System Settings > Network.",
+                "Confirm the active interface (Wi-Fi or Ethernet) shows a green 'Connected' dot."
+              ],
+              "command": "networksetup -listallhardwareports",
+              "gui_path": "System Settings > Network",
+              "expected_output_hint": "Active Wi-Fi or Ethernet service displays 'Connected'"
+            }
+          },
+          "test_type": "visual_inspection",
+          "command_risk_level": "read_only",
+          "parser_key": null,
+          "expected_results": "Network adapter is enabled, Airplane Mode is off, and the device shows Connected to the target Wi-Fi SSID or Ethernet link.",
+          "safety_requirements": [
+            "Do not unplug shared office switch or router power cables without authorization."
+          ],
+          "learning_content": {
+            "why_this_step": "Always verify Layer 1 (Physical) and Layer 2 (Data Link) connectivity first. Running IP or DNS commands on a disconnected adapter wastes time and produces misleading results.",
+            "technical_principle": "OSI Layer 1 (Physical: cables, radio signal, link LEDs) and Layer 2 (Data Link: Wi-Fi SSID association, Ethernet framing) must be established before Layer 3 IP communication can occur.",
+            "limitations": "Showing 'Connected' only confirms link-layer association; it does not prove that DHCP, routing, or internet access is working."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "link_connected",
+              "label": "Adapter is enabled and connected to Ethernet or the correct Wi-Fi SSID",
+              "result_code": "normal",
+              "rules_out": [
+                "Airplane Mode enabled",
+                "Unplugged Ethernet cable or disconnected Wi-Fi SSID"
+              ],
+              "finding_hint": null,
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "NET-001-S2",
+                "summary": "Physical/link layer confirmed. Proceed to inspect IP configuration."
+              }
+            },
+            {
+              "outcome_id": "link_reconnected_resolved",
+              "label": "Cable was loose or Wi-Fi was disconnected; reconnecting restored internet access",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "Physical cable disconnection or Wi-Fi dissociation interrupted connectivity; reconnecting restored service.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Connectivity restored after re-establishing physical/Wi-Fi link."
+              }
+            },
+            {
+              "outcome_id": "adapter_missing_or_disabled",
+              "label": "No network adapter appears, or adapter cannot be enabled / link stays down",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "Network adapter hardware, driver, or physical port failure suspected.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Support for driver inspection, hardware diagnostics, or switch port check."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Clarify whether the device uses Wi-Fi or Ethernet and check link status again."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused until physical/Wi-Fi link status is checked."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "User cannot verify network interface state; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-NET-OSI"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "NET-001-S2",
+          "title": "Inspect Local IP Address and Default Gateway",
+          "objective": "Verify whether the device obtained a valid IPv4 address and default gateway from the local DHCP server.",
+          "instructions": [
+            "Open a terminal or command prompt.",
+            "Run the IP configuration command for your operating system.",
+            "Locate your active Wi-Fi or Ethernet interface and record the IPv4 address and Default Gateway."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Open Command Prompt (cmd) or PowerShell.",
+                "Run `ipconfig /all` and find your active Ethernet or Wireless LAN adapter.",
+                "Check the 'IPv4 Address' and 'Default Gateway' fields."
+              ],
+              "command": "ipconfig /all",
+              "gui_path": "Settings > Network & internet > [Active Connection] > Properties",
+              "expected_output_hint": "Valid LAN IPv4 (e.g., 192.168.x.x or 10.x.x.x) and a non-empty Default Gateway"
+            },
+            "linux": {
+              "instructions": [
+                "Open Terminal.",
+                "Run `ip a` to inspect IPv4 addresses (`inet`) on your active interface (e.g., eth0, enp0s3, wlan0).",
+                "Run `ip r` to verify a `default via <gateway>` route exists."
+              ],
+              "command": "ip a && ip r",
+              "gui_path": "Settings > Network > Gear icon next to active connection > Details",
+              "expected_output_hint": "Active interface has an `inet` LAN IP and `default via <gateway>` route"
+            },
+            "macos": {
+              "instructions": [
+                "Open Terminal.",
+                "Run `ifconfig` (typically `en0` for Wi-Fi) to inspect the `inet` IPv4 address.",
+                "Run `route -n get default` to check the default gateway."
+              ],
+              "command": "ifconfig en0 && route -n get default",
+              "gui_path": "System Settings > Network > [Active Connection] > Details > TCP/IP",
+              "expected_output_hint": "`inet` shows a valid LAN IP and `gateway:` lists the router IP"
+            }
+          },
+          "test_type": "command_execution",
+          "command_risk_level": "read_only",
+          "parser_key": "ip_config",
+          "expected_results": "Active interface has a valid private/corporate IPv4 address (e.g., 192.168.x.x, 10.x.x.x, 172.16-31.x.x) and a configured Default Gateway.",
+          "safety_requirements": [
+            "This is a read-only inspection command and does not modify network configuration."
+          ],
+          "learning_content": {
+            "why_this_step": "Checking IP configuration verifies Layer 3 addressing. If the device has no IP or an APIPA address (169.254.x.x), it failed to communicate with the DHCP server and cannot route traffic outside the local link.",
+            "technical_principle": "DHCP dynamically assigns IP address, subnet mask, default gateway, and DNS servers. When DHCP fails, OSes self-assign a link-local APIPA address (169.254.0.0/16, RFC 3927) which is not routable to the internet.",
+            "limitations": "Having a valid IP address and gateway confirms DHCP worked, but does not confirm that the gateway is reachable or that external internet routing works."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "valid_ip_and_gateway",
+              "label": "Valid LAN IPv4 address (e.g., 192.168.x.x / 10.x.x.x) and Default Gateway are present",
+              "result_code": "normal",
+              "rules_out": [
+                "DHCP lease failure (APIPA 169.254.x.x)",
+                "Missing local IPv4 configuration"
+              ],
+              "finding_hint": null,
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "NET-001-S3",
+                "summary": "Valid IP configuration confirmed. Proceed to test reachability to the Default Gateway."
+              }
+            },
+            {
+              "outcome_id": "apipa_or_no_ip",
+              "label": "IPv4 address is 169.254.x.x (APIPA), missing, or Default Gateway is blank",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "Device did not receive a valid DHCP lease (APIPA or missing IPv4/gateway).",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "NET-001-S2B",
+                "summary": "DHCP lease issue detected. Attempt to renew the DHCP lease."
+              }
+            },
+            {
+              "outcome_id": "interface_down",
+              "label": "Interface shows media disconnected / status: inactive / NO-CARRIER",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "Network interface reports no carrier / inactive link at OS level.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Support to investigate adapter hardware, cable, or wall-jack/switch port."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Please paste the full terminal output or confirm the IPv4 address and Default Gateway."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused until IP configuration is inspected."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to run IP inspection command; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-NET-RFC3927", "REF-NET-MS-IPCONFIG"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "NET-001-S2B",
+          "title": "Renew DHCP Lease",
+          "objective": "Request a fresh IPv4 lease from the DHCP server to determine whether the APIPA/missing IP condition is transient.",
+          "instructions": [
+            "Run the DHCP lease renewal command or GUI action for your operating system.",
+            "Wait 5-10 seconds and verify whether a valid LAN IPv4 address is assigned."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Open Command Prompt (Run as Administrator if prompted).",
+                "Run `ipconfig /release` followed by `ipconfig /renew`.",
+                "Check whether a valid IPv4 address and Default Gateway appear."
+              ],
+              "command": "ipconfig /release && ipconfig /renew",
+              "gui_path": "Settings > Network & internet > Toggle Wi-Fi off/on (or Disable/Enable Ethernet)",
+              "expected_output_hint": "New IPv4 address assigned (not 169.254.x.x) with Default Gateway"
+            },
+            "linux": {
+              "instructions": [
+                "Open Terminal.",
+                "Reconnect the NetworkManager connection using `nmcli` (or renew via `dhclient`)."
+              ],
+              "command": "sudo nmcli networking off && sudo nmcli networking on",
+              "gui_path": "Settings > Network > Toggle connection Off then On",
+              "expected_output_hint": "Interface reconnects and receives a valid `inet` IP via `ip a`"
+            },
+            "macos": {
+              "instructions": [
+                "Open System Settings > Network > [Active Connection] > Details > TCP/IP and click 'Renew DHCP Lease'.",
+                "Or run the terminal command below (replace `en0` if using Ethernet)."
+              ],
+              "command": "sudo ipconfig set en0 DHCP",
+              "gui_path": "System Settings > Network > [Active Connection] > Details > TCP/IP > Renew DHCP Lease",
+              "expected_output_hint": "A valid IPv4 address and Router IP appear under TCP/IP"
+            }
+          },
+          "test_type": "command_execution",
+          "command_risk_level": "system_change",
+          "parser_key": null,
+          "expected_results": "Device obtains a valid LAN IPv4 address and Default Gateway from DHCP.",
+          "safety_requirements": [
+            "This command modifies active network state and will momentarily drop any local network sessions.",
+            "Do not run remotely over SSH/RDP on the same interface or you may lose remote access."
+          ],
+          "learning_content": {
+            "why_this_step": "Forcing a DHCP Discover/Offer/Request/Ack (DORA) handshake isolates temporary client lease glitches from persistent DHCP server, VLAN, or switch issues.",
+            "technical_principle": "DHCP uses UDP ports 67 (server) and 68 (client) via broadcast DORA messages. If renewal fails consistently, the client cannot reach the DHCP server or the DHCP address pool may be exhausted.",
+            "limitations": "Cannot fix upstream DHCP server outages, MAC filtering, or misconfigured switch VLANs."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "dhcp_renewed_valid_ip",
+              "label": "Valid LAN IPv4 address obtained after DHCP renewal",
+              "result_code": "normal",
+              "rules_out": [
+                "Persistent DHCP server unavailability"
+              ],
+              "finding_hint": "Transient DHCP lease issue resolved after renewal; verify gateway connectivity next.",
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "NET-001-S3",
+                "summary": "DHCP renewal succeeded. Proceed to ping the Default Gateway."
+              }
+            },
+            {
+              "outcome_id": "dhcp_renewal_failed",
+              "label": "Still receives 169.254.x.x (APIPA), times out, or fails to obtain an IP",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Simple stale client DHCP lease"
+              ],
+              "finding_hint": "Evidence-supported DHCP acquisition failure: client remains unable to obtain a lease after explicit renewal.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Network Team to inspect DHCP server scope, router DHCP service, or switch VLAN/port configuration."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Run the IP check command again and confirm the current IPv4 address."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending DHCP lease renewal."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "User lacks permissions or cannot renew DHCP lease; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-NET-MS-IPCONFIG"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "NET-001-S3",
+          "title": "Test Default Gateway Reachability (Ping Gateway)",
+          "objective": "Verify Layer 3 connectivity between the local device and the local router (Default Gateway).",
+          "instructions": [
+            "Use the Default Gateway IP recorded in the previous step (for example, 192.168.1.1).",
+            "Send 4 ICMP echo requests (ping) to the Default Gateway.",
+            "Observe packet loss percentage and reply latency."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Open Command Prompt or PowerShell.",
+                "Run `ping <default_gateway_ip>` (Windows sends 4 packets by default)."
+              ],
+              "command": "ping 192.168.1.1",
+              "gui_path": null,
+              "expected_output_hint": "Sent = 4, Received = 4, Lost = 0 (0% loss)"
+            },
+            "linux": {
+              "instructions": [
+                "Open Terminal.",
+                "Run `ping -c 4 <default_gateway_ip>` (`-c 4` stops after 4 packets)."
+              ],
+              "command": "ping -c 4 192.168.1.1",
+              "gui_path": null,
+              "expected_output_hint": "4 packets transmitted, 4 received, 0% packet loss"
+            },
+            "macos": {
+              "instructions": [
+                "Open Terminal.",
+                "Run `ping -c 4 <default_gateway_ip>` (`-c 4` limits to 4 packets)."
+              ],
+              "command": "ping -c 4 192.168.1.1",
+              "gui_path": null,
+              "expected_output_hint": "4 packets transmitted, 4 packets received, 0.0% packet loss"
+            }
+          },
+          "test_type": "command_execution",
+          "command_risk_level": "read_only",
+          "parser_key": "ping",
+          "expected_results": "All 4 ping packets receive replies with 0% packet loss and low latency (typically < 10 ms on LAN).",
+          "safety_requirements": [
+            "Read-only diagnostic command; note that Linux and macOS require `-c 4` so ping does not run indefinitely."
+          ],
+          "learning_content": {
+            "why_this_step": "Pinging the Default Gateway splits the problem in half: if it fails, the problem is inside your local network (device, cable/Wi-Fi, local firewall, or router). If it succeeds, the local LAN is healthy and the issue is upstream.",
+            "technical_principle": "Ping uses ICMP Echo Request and Echo Reply packets at OSI Layer 3. Reaching the gateway proves ARP resolution, Layer 2 switching/Wi-Fi forwarding, and local IP routing all work.",
+            "limitations": "Some enterprise routers or firewalls intentionally block ICMP ping replies, which can cause a false negative even when TCP/UDP traffic works."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "gateway_ping_success",
+              "label": "Gateway replies with 0% packet loss",
+              "result_code": "normal",
+              "rules_out": [
+                "Local LAN connectivity failure",
+                "Local router/gateway unreachability"
+              ],
+              "finding_hint": null,
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "NET-001-S4",
+                "summary": "Local gateway is reachable. Proceed to test external internet IP reachability."
+              }
+            },
+            {
+              "outcome_id": "gateway_ping_failed",
+              "label": "100% packet loss, Request timed out, or Destination host unreachable",
+              "result_code": "abnormal",
+              "rules_out": [],
+              "finding_hint": "Evidence-supported local LAN/gateway reachability failure (ICMP to default gateway failed).",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Support to check local router health, ARP/firewall rules, or Wi-Fi AP isolation."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Verify you used the exact Default Gateway IP from Step 2 and paste the ping output."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused until gateway ping test is completed."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to execute ping test; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-NET-OSI"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "NET-001-S4",
+          "title": "Test External Public IP Reachability (Ping 8.8.8.8)",
+          "objective": "Determine whether traffic can route beyond the local router to the public internet without relying on DNS.",
+          "instructions": [
+            "Ping a known public IPv4 address (`8.8.8.8`) directly by IP.",
+            "Observe whether replies are received and check packet loss."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "In Command Prompt or PowerShell, run `ping 8.8.8.8`."
+              ],
+              "command": "ping 8.8.8.8",
+              "gui_path": null,
+              "expected_output_hint": "Sent = 4, Received = 4, Lost = 0 (0% loss)"
+            },
+            "linux": {
+              "instructions": [
+                "In Terminal, run `ping -c 4 8.8.8.8`."
+              ],
+              "command": "ping -c 4 8.8.8.8",
+              "gui_path": null,
+              "expected_output_hint": "4 packets transmitted, 4 received, 0% packet loss"
+            },
+            "macos": {
+              "instructions": [
+                "In Terminal, run `ping -c 4 8.8.8.8`."
+              ],
+              "command": "ping -c 4 8.8.8.8",
+              "gui_path": null,
+              "expected_output_hint": "4 packets transmitted, 4 packets received, 0.0% packet loss"
+            }
+          },
+          "test_type": "command_execution",
+          "command_risk_level": "read_only",
+          "parser_key": "ping",
+          "expected_results": "Replies are received from 8.8.8.8 with 0% packet loss.",
+          "safety_requirements": [
+            "Read-only diagnostic command."
+          ],
+          "learning_content": {
+            "why_this_step": "Testing a raw public IP bypasses DNS completely. If `8.8.8.8` replies while websites fail to load, you have isolated the fault to DNS (Layer 7) or browser/proxy settings.",
+            "technical_principle": "Routing to a public IP verifies NAT on the router, ISP WAN link status, and external IPv4 routing independent of domain name resolution.",
+            "limitations": "Corporate networks behind strict proxies or firewalls may block outbound ICMP to external IPs while still allowing HTTP/HTTPS traffic."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "external_ip_reachable",
+              "label": "Replies received from 8.8.8.8 (0% or low packet loss)",
+              "result_code": "normal",
+              "rules_out": [
+                "ISP / WAN internet outage",
+                "Router NAT / external IP routing failure"
+              ],
+              "finding_hint": null,
+              "transition": {
+                "action": "next_step",
+                "next_step_id": "NET-001-S5",
+                "summary": "External IP routing works. Proceed to test DNS name resolution."
+              }
+            },
+            {
+              "outcome_id": "external_ip_unreachable",
+              "label": "100% packet loss / Request timed out to 8.8.8.8 (even though gateway responded)",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Local device IP/LAN failure"
+              ],
+              "finding_hint": "Evidence-supported upstream WAN/ISP or perimeter firewall block: local gateway is reachable, but external IP 8.8.8.8 is unreachable.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Network Team / ISP to inspect modem WAN status, upstream routing, or outbound firewall policy."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Paste the ping output or check if outbound ICMP is restricted on this network."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending external IP ping test."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to test external IP reachability; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-NET-OSI"],
+          "max_visits": 2
+        },
+        {
+          "step_id": "NET-001-S5",
+          "title": "Verify DNS Name Resolution",
+          "objective": "Check whether the configured DNS server can translate domain names (e.g., example.com) into IP addresses.",
+          "instructions": [
+            "Run the DNS lookup command for your operating system against `example.com`.",
+            "Check whether an IP address is returned or if the query times out / fails."
+          ],
+          "os_variants": {
+            "windows": {
+              "instructions": [
+                "Open Command Prompt or PowerShell.",
+                "Run `nslookup example.com` and check if an IP address is returned under 'Non-authoritative answer'."
+              ],
+              "command": "nslookup example.com",
+              "gui_path": null,
+              "expected_output_hint": "Returns Server IP and resolved Address(es) for example.com"
+            },
+            "linux": {
+              "instructions": [
+                "Open Terminal.",
+                "Run `dig example.com +short` (or `nslookup example.com` if `dig` is not installed)."
+              ],
+              "command": "dig example.com +short",
+              "gui_path": null,
+              "expected_output_hint": "Returns one or more valid IP addresses (e.g., 93.184.216.34)"
+            },
+            "macos": {
+              "instructions": [
+                "Open Terminal.",
+                "Run `nslookup example.com` (and optionally `scutil --dns` to inspect configured macOS resolvers)."
+              ],
+              "command": "nslookup example.com",
+              "gui_path": "System Settings > Network > [Active Connection] > Details > DNS",
+              "expected_output_hint": "Returns Server IP and resolved Address(es) for example.com"
+            }
+          },
+          "test_type": "command_execution",
+          "command_risk_level": "read_only",
+          "parser_key": null,
+          "expected_results": "The DNS server resolves `example.com` to one or more valid IP addresses without timeout.",
+          "safety_requirements": [
+            "Read-only diagnostic command."
+          ],
+          "learning_content": {
+            "why_this_step": "Because external IP reachability (8.8.8.8) already succeeded, a DNS failure here directly explains why browsers cannot load websites by domain name.",
+            "technical_principle": "DNS operates at OSI Layer 7 (typically UDP/TCP port 53) to translate human-readable hostnames into IP addresses. Misconfigured DNS servers, stale DNS cache, or blocked port 53 will break web browsing even when IP routing is healthy.",
+            "limitations": "A successful `nslookup`/`dig` confirms DNS works, meaning remaining issues are likely in the application layer (browser proxy, VPN split-tunnel, TLS certificate, or specific website outage)."
+          },
+          "outcomes": [
+            {
+              "outcome_id": "dns_failed",
+              "label": "DNS lookup timed out, returned SERVFAIL, or could not find server",
+              "result_code": "abnormal",
+              "rules_out": [
+                "Physical link failure",
+                "DHCP / Local IP failure",
+                "External IP routing outage"
+              ],
+              "finding_hint": "Evidence-supported DNS resolution failure: external IP 8.8.8.8 is reachable, but DNS queries fail.",
+              "transition": {
+                "action": "escalate",
+                "next_step_id": null,
+                "summary": "Escalate to L2 Support or adjust DNS server settings (e.g., verify internal DNS server / port 53 firewall policy)."
+              }
+            },
+            {
+              "outcome_id": "dns_succeeded",
+              "label": "DNS resolves example.com to a valid IP address",
+              "result_code": "normal",
+              "rules_out": [
+                "Physical/Wi-Fi link failure",
+                "DHCP / IP configuration failure",
+                "Gateway / ISP routing outage",
+                "DNS resolution failure"
+              ],
+              "finding_hint": "Core network stack (Layers 1-7 DNS) is healthy. Investigate browser proxy settings, VPN client, local security software, or target website outage.",
+              "transition": {
+                "action": "complete",
+                "next_step_id": null,
+                "summary": "Network stack verified healthy. Recommend checking browser proxy, VPN, or application-level settings."
+              }
+            }
+          ],
+          "result_transitions": {
+            "inconclusive": {
+              "action": "request_more_information",
+              "next_step_id": null,
+              "summary": "Paste the DNS command output to verify the server address and error message."
+            },
+            "not_performed": {
+              "action": "pause",
+              "next_step_id": null,
+              "summary": "Workflow paused pending DNS lookup test."
+            },
+            "unable_to_perform": {
+              "action": "escalate",
+              "next_step_id": null,
+              "summary": "Unable to perform DNS lookup; escalate to L2 Support."
+            }
+          },
+          "reference_ids": ["REF-NET-OSI"],
+          "max_visits": 2
+        }
+      ],
+      "references": [
+        {
+          "reference_id": "REF-NET-OSI",
+          "title": "OSI Model Networking Layers Overview",
+          "publisher": "Cloudflare Learning Center",
+          "url": "https://www.cloudflare.com/learning/ddos/glossary/open-systems-interconnection-model-osi/",
+          "description": "Reference explaining the 7-layer OSI model used to structure bottom-up network troubleshooting."
+        },
+        {
+          "reference_id": "REF-NET-RFC3927",
+          "title": "RFC 3927: Dynamic Configuration of IPv4 Link-Local Addresses (APIPA)",
+          "publisher": "IETF",
+          "url": "https://datatracker.ietf.org/doc/html/rfc3927",
+          "description": "Technical specification defining the 169.254.0.0/16 link-local address range used when DHCP fails."
+        },
+        {
+          "reference_id": "REF-NET-MS-IPCONFIG",
+          "title": "ipconfig Command Reference",
+          "publisher": "Microsoft Learn",
+          "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig",
+          "description": "Official Microsoft documentation for inspecting and renewing IPv4/DHCP settings on Windows."
+        }
+      ]
+    }
+  ]
+}

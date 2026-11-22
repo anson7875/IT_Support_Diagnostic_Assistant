@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IT Support Diagnostic Knowledge Base Schema",
+  "description": "Schema for category-based diagnostic workflow files stored in app/data/.",
+  "type": "object",
+  "required": ["schema_version", "category", "workflows"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["hardware", "os", "network"]
+    },
+    "workflows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/workflow"
+      }
+    }
+  },
+  "$defs": {
+    "workflow": {
+      "type": "object",
+      "required": [
+        "workflow_id",
+        "workflow_name",
+        "category",
+        "supported_os",
+        "description",
+        "version",
+        "initial_step_id",
+        "safety_red_flags",
+        "steps",
+        "references"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "pattern": "^[A-Z]+-[0-9]{3}$"
+        },
+        "workflow_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "enum": ["hardware", "os", "network"]
+        },
+        "supported_os": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["windows", "linux", "macos", "all"]
+          }
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "initial_step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "safety_red_flags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/safety_red_flag"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reference"
+          }
+        }
+      }
+    },
+    "safety_red_flag": {
+      "type": "object",
+      "required": ["flag_id", "label", "warning_message", "escalation_instruction"],
+      "additionalProperties": false,
+      "properties": {
+        "flag_id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "warning_message": { "type": "string", "minLength": 1 },
+        "escalation_instruction": { "type": "string", "minLength": 1 }
+      }
+    },
+    "os_variant": {
+      "type": "object",
+      "required": ["instructions"],
+      "additionalProperties": false,
+      "properties": {
+        "instructions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "command": { "type": ["string", "null"] },
+        "gui_path": { "type": ["string", "null"] },
+        "expected_output_hint": { "type": ["string", "null"] }
+      }
+    },
+    "learning_content": {
+      "type": "object",
+      "required": ["why_this_step", "technical_principle", "limitations"],
+      "additionalProperties": false,
+      "properties": {
+        "why_this_step": { "type": "string", "minLength": 1 },
+        "technical_principle": { "type": "string", "minLength": 1 },
+        "limitations": { "type": "string", "minLength": 1 }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "required": ["action"],
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["next_step", "request_more_information", "pause", "complete", "escalate"]
+        },
+        "next_step_id": { "type": ["string", "null"] },
+        "summary": { "type": ["string", "null"] }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["outcome_id", "label", "result_code", "transition"],
+      "additionalProperties": false,
+      "properties": {
+        "outcome_id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "result_code": {
+          "type": "string",
+          "enum": ["normal", "abnormal", "inconclusive", "not_performed", "unable_to_perform"]
+        },
+        "rules_out": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "finding_hint": { "type": ["string", "null"] },
+        "transition": { "$ref": "#/$defs/transition" }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": [
+        "step_id",
+        "title",
+        "objective",
+        "instructions",
+        "test_type",
+        "command_risk_level",
+        "expected_results",
+        "safety_requirements",
+        "learning_content",
+        "outcomes",
+        "result_transitions",
+        "reference_ids",
+        "max_visits"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "step_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "objective": { "type": "string", "minLength": 1 },
+        "instructions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "os_variants": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "windows": { "$ref": "#/$defs/os_variant" },
+            "linux": { "$ref": "#/$defs/os_variant" },
+            "macos": { "$ref": "#/$defs/os_variant" }
+          }
+        },
+        "test_type": {
+          "type": "string",
+          "enum": [
+            "visual_inspection",
+            "physical_check",
+            "command_execution",
+            "system_information",
+            "performance_check",
+            "hardware_test",
+            "user_confirmation"
+          ]
+        },
+        "command_risk_level": {
+          "type": "string",
+          "enum": ["read_only", "system_change", "destructive", "not_applicable"]
+        },
+        "parser_key": {
+          "type": ["string", "null"],
+          "enum": ["ip_config", "ping", null]
+        },
+        "expected_results": { "type": "string", "minLength": 1 },
+        "safety_requirements": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "safety_red_flags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_red_flag" }
+        },
+        "learning_content": { "$ref": "#/$defs/learning_content" },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/outcome" }
+        },
+        "result_transitions": {
+          "type": "object",
+          "required": ["inconclusive", "not_performed", "unable_to_perform"],
+          "additionalProperties": false,
+          "properties": {
+            "normal": { "$ref": "#/$defs/transition" },
+            "abnormal": { "$ref": "#/$defs/transition" },
+            "inconclusive": { "$ref": "#/$defs/transition" },
+            "not_performed": { "$ref": "#/$defs/transition" },
+            "unable_to_perform": { "$ref": "#/$defs/transition" }
+          }
+        },
+        "reference_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "max_visits": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "required": ["reference_id", "title", "publisher", "url", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "reference_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "publisher": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
