@@ -18,7 +18,10 @@ env/
 # IDE settings
 .vscode/
 
-# Operating system files
+# OS / IDE / Local database files
 .DS_Store
 Thumbs.db
 desktop.ini
+instance/*.db
+instance/*.sqlite
+instance/*.sqlite3
